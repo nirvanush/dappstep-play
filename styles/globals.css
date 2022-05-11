@@ -1,0 +1,75 @@
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.errorCircle {
+  background-color: darkred !important;
+  position: relative;
+}
+
+.compile-error:after {
+  /* white-space: pre;
+  display: block; */
+  /* line-break: strict; */
+  /* content: '\a'; */
+}
+.compile-error:before {
+  /* white-space: pre;
+  display: block; */
+  /* line-break: strict; */
+  /* content: '\a'; */
+}
+a {
+  color: blueviolet !important;
+  text-decoration: underline !important;
+}
+
+.compile-error {
+  color: red;
+  font-size: 12px;
+}
+
+.step-section {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  border-bottom: 1px gainsboro solid;
+  padding-bottom: 20px;
+  padding-top: 40px;
+  position: relative;
+  width: max-content;
+  min-width: 600px;
+}
+
+.step-section:before {
+  content: attr(data-title);
+  position: absolute;
+  top: -9px; left: 0px;
+  display: block;
+  z-index: 0;
+}
+
+.step-section > * {
+  margin-right: 20px;
+}
+/* 
+.errorCircle:before {
+  display: inline-block;
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: red;
+  border-radius: 10px;
+} */

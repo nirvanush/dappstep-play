@@ -1,0 +1,15 @@
+# dependencies
+/node_modules
+/scripts
+
+# production
+/build
+
+# misc
+.env
+.eslintrc.json
+
+.idea/
+.vscode/
+
+*.css

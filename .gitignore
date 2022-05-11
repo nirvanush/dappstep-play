@@ -1,0 +1,23 @@
+.cdk
+cdk.out
+.build
+.idea
+.vscode
+.hidden
+# Dependency directories
+node_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+# dotenv environment variables file
+.env
+.prettierrc.json
+.prettierrc
+.next/
+public/
