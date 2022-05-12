@@ -97,9 +97,7 @@ export default function Send() {
       if (resp.error === 400 && resp.detail) {
         const message = resp.detail;
         const lineNum = parseInt(message.split('\n')[1].replace('line ', ''));
-        const $numberEl = document
-          .querySelector('.cm-lineNumbers')
-          .querySelectorAll('.cm-gutterElement')[lineNum];
+        const $numberEl = document.querySelector('.cm-lineNumbers').querySelectorAll('.cm-gutterElement')[lineNum];
 
         $numberEl.classList.add('errorCircle');
         setCompileError(message);
@@ -311,6 +309,20 @@ export default function Send() {
           Release token
         </Button>
       </div>
+      <Heading as="h3" size="sm" style={{marginTop: 50}}>
+        References:
+      </Heading>
+      <ul>
+        <li>
+          <a
+            href="https://github.com/ergoplatform/ergoscript-by-example/blob/main/pinLockContract.md"
+            target={'_blank'}
+            rel="noreferrer"
+          >
+            Ergoscript by example: Pin lock contract
+          </a>
+        </li>
+      </ul>
     </div>
   );
 }
