@@ -1,6 +1,6 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
+import Head from 'next/head';
+import Image from 'next/image';
+import styles from '../styles/Home.module.css';
 
 export default function Home() {
   return (
@@ -17,8 +17,8 @@ export default function Home() {
         </h1>
 
         <p className={styles.description}>
-          Interactive tutorials for javascript dApp development on Ergo Platform{' '}
-          <code className={styles.code}></code>
+          Interactive tutorials for javascript dApp development on
+          <code className={styles.code}>Ergo Platform</code>
         </p>
 
         <div className={styles.grid}>
@@ -30,11 +30,7 @@ export default function Home() {
       </main>
 
       <footer className={styles.footer}>
-        <a
-          href="https://dappstep.com"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href="https://dappstep.com" target="_blank" rel="noopener noreferrer">
           Powered by{' '}
           <span className={styles.logo}>
             <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
@@ -42,5 +38,5 @@ export default function Home() {
         </a>
       </footer>
     </div>
-  )
+  );
 }

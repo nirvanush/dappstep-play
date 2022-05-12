@@ -1,4 +1,3 @@
-import styles from '../styles/Home.module.css';
 import {
   Button,
   Stack,
@@ -10,33 +9,35 @@ import {
   Box,
   Flex,
   Input,
-  useDisclosure
+  useDisclosure,
 } from '@chakra-ui/react';
-import { sendToken, loadTokensFromWallet } from '../src/services/GenerateSendFundsTx';
-import { sendFunds } from '../src/services/Transaction';
-import { checkTx, p2sNode } from '../src/services/helpers';
 import { useEffect, useState } from 'react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 import { Address, minBoxValue } from '@coinbarn/ergo-ts';
+import { blake2b256 } from '@multiformats/blake2/blake2b';
+import { Serializer } from '@coinbarn/ergo-ts/dist/serializer';
+import { sendToken, loadTokensFromWallet } from '../src/services/GenerateSendFundsTx';
+import { sendFunds } from '../src/services/Transaction';
+import { checkTx, p2sNode } from '../src/services/helpers';
 import { encodeHex, encodeLongTuple, encodeNum, encodeByteArray } from '../src/lib/serializer';
 import { get } from '../src/lib/rest';
+import styles from '../styles/Home.module.css';
 import ErgoScriptEditor from './components/ErgoScriptEditor';
-import { blake2b256 } from '@multiformats/blake2/blake2b'
-import {Serializer} from "@coinbarn/ergo-ts/dist/serializer";
 import TransactionPreviewModal from './components/TransactionPreviewModal';
 
-var swapArrayLocs = function (arr, index1, index2) {
-  var temp = arr[index1];
+const swapArrayLocs = function (arr, index1, index2) {
+  const temp = arr[index1];
 
   arr[index1] = arr[index2];
   arr[index2] = temp;
-}
+};
 
 const baseContract = `
   sigmaProp(INPUTS(0).R4[Coll[Byte]].get == blake2b256(OUTPUTS(0).R4[Coll[Byte]].get))
-`
+`;
+
 async function listTokens() {
-  await ergoConnector.nautilus.connect()
+  await ergoConnector.nautilus.connect();
 
   return await loadTokensFromWallet();
 }
@@ -44,8 +45,8 @@ async function listTokens() {
 async function listLockedListings(address: string) {
   if (!address) return [];
   return await get(`https://api.ergoplatform.com/api/v1/boxes/unspent/byAddress/${address}`)
-    .then(resp => resp.json())
-    .then(resp => resp.items.filter(item => item.assets.length > 0));
+    .then((resp) => resp.json())
+    .then((resp) => resp.items.filter((item) => item.assets.length > 0));
 }
 
 export default function Send() {
@@ -56,10 +57,10 @@ export default function Send() {
   const [tokenToRelease, setTokenToRelease] = useState({ assets: [{ name: '' }] });
   const [compileError, setCompileError] = useState('');
   const [contractAddress, setContractAddress] = useState(null);
-  const [contract, setContract] = useState('')
+  const [contract, setContract] = useState('');
   const [unsignedTxJson, setUnsignedTxJson] = useState({});
-  const [isGeneratingLockTx, setIsGeneratingLockTx] = useState(false)
-  const [isGeneratingReleaseTx, setIsGeneratingReleaseTx] = useState(false)
+  const [isGeneratingLockTx, setIsGeneratingLockTx] = useState(false);
+  const [isGeneratingReleaseTx, setIsGeneratingReleaseTx] = useState(false);
   const [pin, setPin] = useState('1234');
 
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -74,41 +75,43 @@ export default function Send() {
       const items = await listLockedListings(resp.address);
       setLockedTokens(items);
 
-      setIsLoadingTokens(true)
+      setIsLoadingTokens(true);
       const tokensMap = await listTokens();
 
       setTokens(Object.values(tokensMap));
-      setIsLoadingTokens(false)
-
+      setIsLoadingTokens(false);
     }
 
     fetchData();
   }, []);
-
 
   async function handleScriptChanged(value) {
     setContract(value);
     localStorage.setItem('contract', value);
 
     let resp;
+
     try {
       resp = await p2sNode(`${value}`);
-      
+
       if (resp.error === 400 && resp.detail) {
         const message = resp.detail;
         const lineNum = parseInt(message.split('\n')[1].replace('line ', ''));
-        const $numberEl = document.querySelector('.cm-lineNumbers').querySelectorAll('.cm-gutterElement')[lineNum]
+        const $numberEl = document
+          .querySelector('.cm-lineNumbers')
+          .querySelectorAll('.cm-gutterElement')[lineNum];
+
         $numberEl.classList.add('errorCircle');
         setCompileError(message);
-        setContractAddress(null)
+        setContractAddress(null);
         return;
       }
+
       setContractAddress(resp.address);
       setCompileError(null);
       const items = await listLockedListings(resp.address);
       setLockedTokens(items);
-
-    } catch(e) {
+    } catch (e) {
       // console.log(e.error);
     }
   }
@@ -116,11 +119,12 @@ export default function Send() {
   async function handleLockAsset() {
     setIsGeneratingLockTx(true);
     // connect to ergo wallet
-    await ergoConnector.nautilus.connect()
+    await ergoConnector.nautilus.connect();
     let resp;
+
     try {
       resp = await p2sNode(contract);
-    } catch(e) {
+    } catch (e) {
       console.log(e.error);
       setCompileError(e.message);
       throw e;
@@ -130,8 +134,8 @@ export default function Send() {
 
     let unsignedTx;
 
-    const hashedPin = await encodeByteArray(await blake2b256.encode(pin))
-    
+    const hashedPin = await encodeByteArray(await blake2b256.encode(pin));
+
     try {
       unsignedTx = await sendFunds({
         funds: {
@@ -140,19 +144,18 @@ export default function Send() {
         },
         toAddress: resp.address,
         additionalRegisters: {
-          R4: hashedPin
-        }
-      })
-
-    } catch(e) {
+          R4: hashedPin,
+        },
+      });
+    } catch (e) {
       alert(e.message);
       setIsGeneratingReleaseTx(false);
     }
 
-    console.log({unsignedTx});
+    console.log({ unsignedTx });
     setUnsignedTxJson(JSON.stringify(unsignedTx));
     setIsGeneratingLockTx(false);
-    onOpen()
+    onOpen();
   }
 
   async function handleReleaseToken() {
@@ -160,7 +163,7 @@ export default function Send() {
     // connect to ergo wallet
     if (!tokenToRelease) return;
 
-    await ergoConnector.nautilus.connect()
+    await ergoConnector.nautilus.connect();
 
     const changeAddress = await ergo.get_change_address();
     const tree = new Address(changeAddress).ergoTree;
@@ -176,28 +179,30 @@ export default function Send() {
         toAddress: changeAddress,
         additionalRegisters: {
           R4: await encodeHex(Serializer.stringToHex(pin)),
-        }
+        },
       });
-    } catch(e) {
-      alert(e.message)
+    } catch (e) {
+      alert(e.message);
       setIsGeneratingReleaseTx(false);
     }
 
     // on top of regular send funds tx do some enrichements.
     // this will move to an external package.
-    unsignedTx.inputs.push(Object.assign({}, tokenToRelease, {extension: {}}))
-    unsignedTx.outputs[0] = Object.assign({}, unsignedTx.outputs[0], {additionalRegisters: {
-      R4: await encodeHex(Serializer.stringToHex(pin)),
-    }});
+    unsignedTx.inputs.push(Object.assign({}, tokenToRelease, { extension: {} }));
+    unsignedTx.outputs[0] = Object.assign({}, unsignedTx.outputs[0], {
+      additionalRegisters: {
+        R4: await encodeHex(Serializer.stringToHex(pin)),
+      },
+    });
 
-    unsignedTx.outputs[1] = Object.assign({}, tokenToRelease, {ergoTree: tree});
+    unsignedTx.outputs[1] = Object.assign({}, tokenToRelease, { ergoTree: tree });
 
     swapArrayLocs(unsignedTx.inputs, 0, 1);
 
     console.log(unsignedTx);
     setUnsignedTxJson(JSON.stringify(unsignedTx));
     setIsGeneratingReleaseTx(false);
-    onOpen()
+    onOpen();
   }
 
   async function signAndSubmit(unsignedTx) {
@@ -223,7 +228,8 @@ export default function Send() {
         isOpen={isOpen}
         onClose={onClose}
         unsignedTx={unsignedTxJson}
-        handleSubmit={() => signAndSubmit(unsignedTxJson)}/>
+        handleSubmit={() => signAndSubmit(unsignedTxJson)}
+      />
 
       <Stack spacing={6}>
         <Heading as="h3" size="lg">
@@ -231,18 +237,23 @@ export default function Send() {
         </Heading>
 
         <Flex>
-          <Box w='50%'>
-            <ErgoScriptEditor onChange={handleScriptChanged} height="250px"
-            code={contract}/>
+          <Box w="50%">
+            <ErgoScriptEditor onChange={handleScriptChanged} height="250px" code={contract} />
           </Box>
-          <Box w='50%' paddingLeft={10}>
-              {compileError && <div className="compile-error">
-                {compileError}
-              </div>}
-              {contractAddress && <div>
+          <Box w="50%" paddingLeft={10}>
+            {compileError && <div className="compile-error">{compileError}</div>}
+            {contractAddress && (
+              <div>
                 <h5>Contract Address - {lockedTokens.length} boxes locked</h5>
-                <a href={`https://api.ergoplatform.com/api/v1/boxes/unspent/byAddress/${contractAddress}`} target="_blank">{contractAddress}</a>
-              </div>}
+                <a
+                  href={`https://api.ergoplatform.com/api/v1/boxes/unspent/byAddress/${contractAddress}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {contractAddress}
+                </a>
+              </div>
+            )}
           </Box>
         </Flex>
       </Stack>
@@ -263,38 +274,43 @@ export default function Send() {
       </div>
 
       <div className="step-section" data-title="1) Lock asset">
-        Pin: <Input placeholder='pin' value={pin} onChange={(e) => setPin(e.target.value)} width={200}/>
-        <Button onClick={handleLockAsset}
+        Pin:{` `}
+        <Input placeholder="pin" value={pin} onChange={(e) => setPin(e.target.value)} width={200} />
+        <Button
+          onClick={handleLockAsset}
           width="200px"
           isLoading={isLoadingTokens || isGeneratingLockTx}
-          isDisabled={!selectedToken.name || !pin} colorScheme="blue">
+          isDisabled={!selectedToken.name || !pin}
+          colorScheme="blue"
+        >
           Lock Asset
         </Button>
       </div>
-      
 
-        <div className="step-section" data-title="2) Release asset">
-          <Menu>
-            <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
-              {tokenToRelease?.assets[0].name || 'Select token to release'}
-            </MenuButton>
-            <MenuList>
-              {lockedTokens.map((box) => (
-                <MenuItem onClick={() => setTokenToRelease(box)} key={box.boxId}>
-                  {box.assets[0]?.name}
-                </MenuItem>
-              ))}
-            </MenuList>
-          </Menu>
+      <div className="step-section" data-title="2) Release asset">
+        <Menu>
+          <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
+            {tokenToRelease?.assets[0].name || 'Select token to release'}
+          </MenuButton>
+          <MenuList>
+            {lockedTokens.map((box) => (
+              <MenuItem onClick={() => setTokenToRelease(box)} key={box.boxId}>
+                {box.assets[0]?.name}
+              </MenuItem>
+            ))}
+          </MenuList>
+        </Menu>
 
-          <Button onClick={handleReleaseToken}
-            width="200px"
-            colorScheme="blue"
-            isLoading={isGeneratingReleaseTx}>
-            Release token
-          </Button>
-        </div>
-
+        <Button
+          onClick={handleReleaseToken}
+          width="200px"
+          colorScheme="blue"
+          isLoading={isGeneratingReleaseTx}
+          isDisabled={!tokenToRelease?.assets[0].name}
+        >
+          Release token
+        </Button>
+      </div>
     </div>
   );
 }

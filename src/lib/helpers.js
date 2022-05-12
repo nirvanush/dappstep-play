@@ -84,8 +84,7 @@ export function getWalletAddress() {
 }
 
 export function getWalletType() {
-  if (localStorage.getItem('wallet') !== null)
-    return JSON.parse(localStorage.getItem('wallet')).type;
+  if (localStorage.getItem('wallet') !== null) return JSON.parse(localStorage.getItem('wallet')).type;
   return JSON.parse(sessionStorage.getItem('wallet')).type;
 }
 
@@ -162,7 +161,7 @@ export function addNotification(msg, lnk, stat = 'info') {
     },
   ]);
   setForKey(nots, 'notification');
-  notifyMe(msg, lnk).then((r) => { });
+  notifyMe(msg, lnk).then((r) => {});
 }
 
 export function isNotifSupported() {
@@ -174,10 +173,8 @@ export async function notifyMe(msg, lnk) {
   //   const lastNotif = moment.duration(moment().diff(moment(additionalData.lastNotif))).asSeconds();
   //   if (lastNotif < notifCoolOff) return;
   // }
-
   // additionalData.lastNotif = moment().valueOf();
   // if (!isNotifSupported()) return;
-
   // if (Notification.permission !== 'granted') await Notification.requestPermission();
   // else {
   //   const notification = new Notification('New Notification for the Ergo Auction House', {
@@ -185,7 +182,6 @@ export async function notifyMe(msg, lnk) {
   //     body: msg,
   //     image: onlyLogo,
   //   });
-
   //   notification.onclick = function () {
   //     window.open(lnk);
   //   };

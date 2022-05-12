@@ -64,17 +64,22 @@ export type dataInputsType = {
 
 export async function generateRentStartTx({}) {}
 
+interface Need {
+  ERG: number;
+  [key: string]: number;
+}
+
 export async function sendToken({
   tokenId,
   addressList,
   additionalRegisters = {},
 }: {
-  tokenId?: string;
+  tokenId: string;
   addressList: AddressItem[];
   additionalRegisters: dataInputsType;
 }) {
   const optimalTxFee = calculateOptimalFee(addressList);
-  const need = {
+  const need: Need = {
     ERG: MIN_FEE * addressList.length + optimalTxFee,
     [tokenId]: addressList.reduce(function (a, b) {
       return a + parseInt(b.amount);

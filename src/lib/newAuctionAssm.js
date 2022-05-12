@@ -37,148 +37,148 @@ const template = `{
 }`;
 
 export async function registerAuction(initial, currency, buyItNow, step, end, description) {
-    let outs = [];
-    const block = await currentBlock();
-    const p2s = (await getAuctionP2s(initial, end, step, buyItNow, currency)).address;
-    const bidder = getWalletAddress();
-    let tree = new Address(bidder).ergoTree;
-    let info = JSON.stringify({
-        initialBid: initial,
-        startTime: block.timestamp,
-        description: description,
-    });
+  let outs = [];
+  const block = await currentBlock();
+  const p2s = (await getAuctionP2s(initial, end, step, buyItNow, currency)).address;
+  const bidder = getWalletAddress();
+  let tree = new Address(bidder).ergoTree;
+  let info = JSON.stringify({
+    initialBid: initial,
+    startTime: block.timestamp,
+    description: description,
+  });
 
-    let auctionErg = -1;
-    let auctionAssets = [
-        {
-            tokenId: '$userIns.token',
-            amount: 0,
-        },
+  let auctionErg = -1;
+  let auctionAssets = [
+    {
+      tokenId: '$userIns.token',
+      amount: 0,
+    },
+  ];
+  let start = { erg: supportedCurrencies.ERG.minSupported - txFee };
+
+  if (currency.id.length > 0) {
+    start[currency.id] = 0;
+    auctionAssets = [
+      {
+        tokenId: '$userIns.token',
+        amount: 0,
+      },
+      {
+        tokenId: currency.id,
+        amount: -1,
+      },
     ];
-    let start = { erg: supportedCurrencies.ERG.minSupported - txFee };
+  }
 
-    if (currency.id.length > 0) {
-        start[currency.id] = 0;
-        auctionAssets = [
-            {
-                tokenId: '$userIns.token',
-                amount: 0,
-            },
-            {
-                tokenId: currency.id,
-                amount: -1,
-            },
-        ];
-    }
+  outs = outs.concat([
+    {
+      address: auctionAddress,
+      value: auctionErg,
+      assets: auctionAssets,
+      registers: {
+        R4: await encodeHex(tree),
+        R5: await encodeHex(tree),
+        R6: await encodeLongTuple(initial, step),
+        R7: await encodeNum(end.toString()),
+        R8: await encodeNum(buyItNow.toString()),
+        R9: await encodeHex(Serializer.stringToHex(info)),
+      },
+    },
+  ]);
 
+  const dataInput = additionalData.dataInput;
+  let auctionStartFee = 0;
+
+  if (dataInput.additionalRegisters.R8 !== undefined) {
+    auctionStartFee = parseInt(dataInput.additionalRegisters.R8.renderedValue);
+    const feeTo = Address.fromErgoTree(dataInput.additionalRegisters.R5.renderedValue).address;
+    start.erg += auctionStartFee;
     outs = outs.concat([
-        {
-            address: auctionAddress,
-            value: auctionErg,
-            assets: auctionAssets,
-            registers: {
-                R4: await encodeHex(tree),
-                R5: await encodeHex(tree),
-                R6: await encodeLongTuple(initial, step),
-                R7: await encodeNum(end.toString()),
-                R8: await encodeNum(buyItNow.toString()),
-                R9: await encodeHex(Serializer.stringToHex(info)),
-            },
-        },
+      {
+        address: feeTo,
+        value: auctionStartFee,
+      },
     ]);
+  }
 
-    const dataInput = additionalData.dataInput;
-    let auctionStartFee = 0;
-
-    if (dataInput.additionalRegisters.R8 !== undefined) {
-        auctionStartFee = parseInt(dataInput.additionalRegisters.R8.renderedValue);
-        const feeTo = Address.fromErgoTree(dataInput.additionalRegisters.R5.renderedValue).address;
-        start.erg += auctionStartFee;
-        outs = outs.concat([
-            {
-                address: feeTo,
-                value: auctionStartFee,
-            },
-        ]);
+  let request = {
+    address: p2s,
+    returnTo: bidder,
+    startWhen: start,
+    txSpec: {
+      requests: outs,
+      fee: txFee,
+      inputs: ['$userIns'],
+      dataInputs: [additionalData.dataInput.boxId],
+    },
+  };
+  return await follow(request).then((res) => {
+    if (res.id !== undefined) {
+      let pending = {
+        id: res.id,
+        address: p2s,
+        time: moment().valueOf(),
+        key: 'auction',
+      };
+      addForKey(pending, 'pending');
     }
 
-    let request = {
-        address: p2s,
-        returnTo: bidder,
-        startWhen: start,
-        txSpec: {
-            requests: outs,
-            fee: txFee,
-            inputs: ['$userIns'],
-            dataInputs: [additionalData.dataInput.boxId],
-        },
-    };
-    return await follow(request).then((res) => {
-        if (res.id !== undefined) {
-            let pending = {
-                id: res.id,
-                address: p2s,
-                time: moment().valueOf(),
-                key: 'auction',
-            };
-            addForKey(pending, 'pending');
-        }
-
-        res.address = p2s;
-        res.block = block;
-        res.startFee = auctionStartFee;
-        return res;
-    });
+    res.address = p2s;
+    res.block = block;
+    res.startFee = auctionStartFee;
+    return res;
+  });
 }
 
 export async function getAuctionP2s(initial, end, step, buyItNow, currency) {
-    let userAddress = getWalletAddress();
-    let userTree = Buffer.from(new Address(userAddress).ergoTree, 'hex').toString('base64');
-    let auctionTree = Buffer.from(new Address(auctionAddress).ergoTree, 'hex').toString('base64');
-    let currencyID = Buffer.from(currency.id, 'hex').toString('base64');
+  let userAddress = getWalletAddress();
+  let userTree = Buffer.from(new Address(userAddress).ergoTree, 'hex').toString('base64');
+  let auctionTree = Buffer.from(new Address(auctionAddress).ergoTree, 'hex').toString('base64');
+  let currencyID = Buffer.from(currency.id, 'hex').toString('base64');
 
-    const dataInput = additionalData.dataInput;
-    const auctionStartFee = parseInt(dataInput.additionalRegisters.R8.renderedValue);
-    const feeTo = Address.fromErgoTree(dataInput.additionalRegisters.R5.renderedValue).address;
-    let implementorTree = Buffer.from(new Address(feeTo).ergoTree, 'hex').toString('base64');
+  const dataInput = additionalData.dataInput;
+  const auctionStartFee = parseInt(dataInput.additionalRegisters.R8.renderedValue);
+  const feeTo = Address.fromErgoTree(dataInput.additionalRegisters.R5.renderedValue).address;
+  let implementorTree = Buffer.from(new Address(feeTo).ergoTree, 'hex').toString('base64');
 
-    let script = template
-        .replace('$userAddress', userTree)
-        .replace('$auctionAddress', auctionTree)
-        .replace('$bidAmount', initial)
-        .replace('$endTime', end)
-        .replace('$bidDelta', step)
-        .replace('$currencyId', currencyID)
-        .replace('$buyItNow', buyItNow)
-        .replace('$timestamp', moment().valueOf())
-        .replace('$implementor', implementorTree)
-        .replace('$startFee', auctionStartFee)
-        .replaceAll('\n', '\\n');
-    return p2s(script);
+  let script = template
+    .replace('$userAddress', userTree)
+    .replace('$auctionAddress', auctionTree)
+    .replace('$bidAmount', initial)
+    .replace('$endTime', end)
+    .replace('$bidDelta', step)
+    .replace('$currencyId', currencyID)
+    .replace('$buyItNow', buyItNow)
+    .replace('$timestamp', moment().valueOf())
+    .replace('$implementor', implementorTree)
+    .replace('$startFee', auctionStartFee)
+    .replaceAll('\n', '\\n');
+  return p2s(script);
 }
 
 export async function newAuctionHelper(
-    initial,
-    currency,
-    buyItNow,
-    step,
-    end,
-    description,
-    selectedToken,
-    amount,
-    assemblerModal,
+  initial,
+  currency,
+  buyItNow,
+  step,
+  end,
+  description,
+  selectedToken,
+  amount,
+  assemblerModal,
 ) {
-    const r = await registerAuction(initial, currency, buyItNow, step, end, description);
-    if (r.id === undefined) throw Error('Could not contact the assembler service');
+  const r = await registerAuction(initial, currency, buyItNow, step, end, description);
+  if (r.id === undefined) throw Error('Could not contact the assembler service');
 
-    if (isAssembler()) {
-        let toSend = currency.initial;
-        if (currency.name === 'ERG') toSend += r.startFee;
-        assemblerModal(r.address, longToCurrency(toSend, -1, currency.name), true, currency.name);
-    } else if (isYoroi()) {
-        let need = { ERG: supportedCurrencies.ERG.initial + r.startFee };
-        need[selectedToken.value] = amount;
-        if (currency.id.length > 0) need[currency.id] = currency.initial;
-        return await yoroiSendFunds(need, r.address, r.block);
-    }
+  if (isAssembler()) {
+    let toSend = currency.initial;
+    if (currency.name === 'ERG') toSend += r.startFee;
+    assemblerModal(r.address, longToCurrency(toSend, -1, currency.name), true, currency.name);
+  } else if (isYoroi()) {
+    let need = { ERG: supportedCurrencies.ERG.initial + r.startFee };
+    need[selectedToken.value] = amount;
+    if (currency.id.length > 0) need[currency.id] = currency.initial;
+    return await yoroiSendFunds(need, r.address, r.block);
+  }
 }
