@@ -20,18 +20,6 @@ a {
   position: relative;
 }
 
-.compile-error:after {
-  /* white-space: pre;
-  display: block; */
-  /* line-break: strict; */
-  /* content: '\a'; */
-}
-.compile-error:before {
-  /* white-space: pre;
-  display: block; */
-  /* line-break: strict; */
-  /* content: '\a'; */
-}
 a {
   color: blueviolet !important;
   text-decoration: underline !important;
