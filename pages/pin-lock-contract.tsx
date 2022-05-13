@@ -247,6 +247,7 @@ export default function Send() {
                 <a
                   href={`https://api.ergoplatform.com/api/v1/boxes/unspent/byAddress/${contractAddress}`}
                   target="_blank"
+                  style={{color: 'blue', textDecoration: 'underline' }}
                   rel="noreferrer"
                 >
                   {contractAddress}
@@ -262,6 +263,7 @@ export default function Send() {
           <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
             {selectedToken?.name || 'Select token'}
           </MenuButton>
+          {(!!tokens.length && !selectedToken?.name) && '<-- select token first'}
           <MenuList>
             {tokens.map((token) => (
               <MenuItem onClick={() => setSelectedToken(token)} key={token.tokenId}>
@@ -310,20 +312,22 @@ export default function Send() {
           Release token
         </Button>
       </div>
-      <Heading as="h3" size="sm" style={{ marginTop: 50 }}>
-        References:
-      </Heading>
-      <ul>
-        <li>
-          <a
-            href="https://github.com/ergoplatform/ergoscript-by-example/blob/main/pinLockContract.md"
-            target={'_blank'}
-            rel="noreferrer"
-          >
-            Ergoscript by example: Pin lock contract
-          </a>
-        </li>
-      </ul>
+      <div className="dapp-footer">
+        <Heading as="h3" size="sm" style={{ marginTop: 50 }}>
+          References:
+        </Heading>
+        <ul>
+          <li>
+            <a
+              href="https://github.com/ergoplatform/ergoscript-by-example/blob/main/pinLockContract.md"
+              target={'_blank'}
+              rel="noreferrer"
+            >
+              Ergoscript by example: Pin lock contract
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
   );
 }

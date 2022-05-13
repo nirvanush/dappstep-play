@@ -21,8 +21,8 @@ a {
 }
 
 a {
-  color: blueviolet !important;
-  text-decoration: underline !important;
+  /* color: blueviolet !important; */
+  /* text-decoration: underline !important; */
 }
 
 .compile-error {
@@ -52,6 +52,11 @@ a {
 
 .step-section > * {
   margin-right: 20px;
+}
+
+.dapp-footer a{
+  color: blue;
+  text-decoration: underline;
 }
 /* 
 .errorCircle:before {
