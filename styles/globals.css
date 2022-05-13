@@ -38,6 +38,7 @@ a {
 }
 
 .compile-error {
+  white-space: pre-line;
   color: red;
   font-size: 12px;
 }

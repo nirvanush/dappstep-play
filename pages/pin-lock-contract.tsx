@@ -93,13 +93,14 @@ export default function Send() {
 
     try {
       resp = await p2sNode(`${value}`);
+      if (resp.error) {
+        const message = resp.error;
+        // const lineNum = parseInt(message.split('\n')[1].replace('line ', ''));
+        // const $numberEl = document
+        //   .querySelector('.cm-lineNumbers')
+        //   .querySelectorAll('.cm-gutterElement')[lineNum];
 
-      if (resp.error === 400 && resp.detail) {
-        const message = resp.detail;
-        const lineNum = parseInt(message.split('\n')[1].replace('line ', ''));
-        const $numberEl = document.querySelector('.cm-lineNumbers').querySelectorAll('.cm-gutterElement')[lineNum];
-
-        $numberEl.classList.add('errorCircle');
+        // $numberEl.classList.add('errorCircle');
         setCompileError(message);
         setContractAddress(null);
         return;
@@ -309,7 +310,7 @@ export default function Send() {
           Release token
         </Button>
       </div>
-      <Heading as="h3" size="sm" style={{marginTop: 50}}>
+      <Heading as="h3" size="sm" style={{ marginTop: 50 }}>
         References:
       </Heading>
       <ul>

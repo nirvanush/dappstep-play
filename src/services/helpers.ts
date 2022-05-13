@@ -3,22 +3,8 @@ import { Asset, Balance } from './types';
 import request from 'superagent';
 import { ErgoBox } from '@coinbarn/ergo-ts';
 
-export async function p2s(contract: string) {
-  const url = 'http://213.239.193.208:9053/script/p2sAddress';
-  // const url = 'https://assembler.ergoauctions.org/compile'
-  return await post(url, contract)
-    .then((res) => res.json())
-    .then((res) => {
-      if (res.success === false) {
-        console.error(res.detail);
-        throw new Error(res.detail);
-      }
-      return res;
-    });
-}
-
 export async function p2sNode(contract: string) {
-  const url = 'http://213.239.193.208:9053/script/p2sAddress';
+  const url = 'https://0dj9ag2t1h.execute-api.us-west-1.amazonaws.com/compile';
   return await fetch(url, {
     method: 'POST',
     headers: {
