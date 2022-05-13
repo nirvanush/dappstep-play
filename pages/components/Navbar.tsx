@@ -4,7 +4,7 @@ import {
   Flex,
   HStack,
   Link,
-  IconButton,,
+  IconButton,
   useDisclosure,
   useColorModeValue,
   Stack,

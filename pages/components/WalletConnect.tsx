@@ -2,7 +2,7 @@ import { Menu, MenuButton, MenuList, MenuItem, Button, MenuDivider, Link } from 
 import { useEffect, useState } from 'react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 
-function shortenAddress(str: string, chars: number = 10) {
+function shortenAddress(str: string, chars: number) {
   return '...' + str.substr(str.length - chars);
 }
 
