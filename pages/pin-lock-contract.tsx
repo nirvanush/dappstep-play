@@ -93,6 +93,7 @@ export default function Send() {
 
     try {
       resp = await p2sNode(`${value}`);
+
       if (resp.error) {
         const message = resp.error;
         // const lineNum = parseInt(message.split('\n')[1].replace('line ', ''));
@@ -247,7 +248,7 @@ export default function Send() {
                 <a
                   href={`https://api.ergoplatform.com/api/v1/boxes/unspent/byAddress/${contractAddress}`}
                   target="_blank"
-                  style={{color: 'blue', textDecoration: 'underline' }}
+                  style={{ color: 'blue', textDecoration: 'underline' }}
                   rel="noreferrer"
                 >
                   {contractAddress}
@@ -263,7 +264,7 @@ export default function Send() {
           <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
             {selectedToken?.name || 'Select token'}
           </MenuButton>
-          {(!!tokens.length && !selectedToken?.name) && '<-- select token first'}
+          {!!tokens.length && !selectedToken?.name && '<-- select token first'}
           <MenuList>
             {tokens.map((token) => (
               <MenuItem onClick={() => setSelectedToken(token)} key={token.tokenId}>

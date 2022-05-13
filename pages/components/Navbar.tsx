@@ -2,16 +2,9 @@ import { ReactNode } from 'react';
 import {
   Box,
   Flex,
-  Avatar,
   HStack,
   Link,
-  IconButton,
-  Button,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  MenuDivider,
+  IconButton,,
   useDisclosure,
   useColorModeValue,
   Stack,
@@ -25,7 +18,7 @@ const Links = [
   { title: 'Blog', href: 'https://www.dappstep.com/blog' },
 ];
 
-const NavLink = ({ href, children }: { href: string, children: ReactNode }) => (
+const NavLink = ({ href, children }: { href: string; children: ReactNode }) => (
   <Link
     px={2}
     py={1}
@@ -34,7 +27,8 @@ const NavLink = ({ href, children }: { href: string, children: ReactNode }) => (
       textDecoration: 'none',
       bg: useColorModeValue('gray.200', 'gray.700'),
     }}
-    href={href}>
+    href={href}
+  >
     {children}
   </Link>
 );
@@ -55,12 +49,11 @@ export default function Navbar() {
           />
           <HStack spacing={8} alignItems={'center'}>
             <Box>Dappstep</Box>
-            <HStack
-              as={'nav'}
-              spacing={4}
-              display={{ base: 'none', md: 'flex' }}>
-                {Links.map((link) => (
-                <NavLink key={link.title} href={link.href}>{link.title}</NavLink>
+            <HStack as={'nav'} spacing={4} display={{ base: 'none', md: 'flex' }}>
+              {Links.map((link) => (
+                <NavLink key={link.title} href={link.href}>
+                  {link.title}
+                </NavLink>
               ))}
             </HStack>
           </HStack>
@@ -72,8 +65,10 @@ export default function Navbar() {
         {isOpen ? (
           <Box pb={4} display={{ md: 'none' }}>
             <Stack as={'nav'} spacing={4}>
-            {Links.map((link) => (
-                <NavLink key={link.title} href={link.href}>{link.title}</NavLink>
+              {Links.map((link) => (
+                <NavLink key={link.title} href={link.href}>
+                  {link.title}
+                </NavLink>
               ))}
             </Stack>
           </Box>
@@ -82,4 +77,3 @@ export default function Navbar() {
     </>
   );
 }
-

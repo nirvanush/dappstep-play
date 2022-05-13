@@ -2,9 +2,9 @@ import { Menu, MenuButton, MenuList, MenuItem, Button, MenuDivider, Link } from 
 import { useEffect, useState } from 'react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 
-function shortenAddress(str: string, chars: number=10) {
-  return '...' + str.substr(str.length - chars)
-} 
+function shortenAddress(str: string, chars: number = 10) {
+  return '...' + str.substr(str.length - chars);
+}
 
 const USER_ADDRESS = 'user-address';
 
@@ -24,32 +24,35 @@ export default function WalletConnect() {
     }
   }
 
-  function howTo() {
-    
-  }
-
   useEffect(() => {
-    connectWallet()
-  }, [])
+    connectWallet();
+  }, []);
 
   return (
     <Menu>
       <MenuButton
         as={Button}
         cursor={'pointer'}
-        maxW={200}
-        {...(!!userAddress ? connectedProps : {})}
-        style={{overflow: 'hidden'}}
-        minW={0}>
-        {userAddress ?  shortenAddress(userAddress, 10): 'Connect Wallet'}
+        maxW={'200px'}
+        {...(userAddress ? connectedProps : {})}
+        style={{ overflow: 'hidden' }}
+        minW={0}
+      >
+        {userAddress ? shortenAddress(userAddress, 10) : 'Connect Wallet'}
       </MenuButton>
       <MenuList>
         <MenuItem onClick={connectWallet}>Nautilus</MenuItem>
         <MenuDivider />
-        <MenuItem onClick={howTo} icon={<ExternalLinkIcon />} as={Link} minH="48px" href="https://www.dappstep.com/blog" isExternal>
-         How to implement it?
+        <MenuItem
+          icon={<ExternalLinkIcon />}
+          as={Link}
+          minH="48px"
+          href="https://www.dappstep.com/blog"
+          isExternal
+        >
+          How to implement it?
         </MenuItem>
       </MenuList>
     </Menu>
-  )
+  );
 }
