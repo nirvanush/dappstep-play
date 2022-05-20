@@ -38,7 +38,7 @@ function TransactionPreviewModal({
           </ModalBody>
 
           <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={handleSubmit} isLoading={isSubmitting} disabled={!txHash}>
+            <Button colorScheme="blue" mr={3} onClick={handleSubmit} isLoading={isSubmitting} disabled={txHash}>
               Sign & Submit
             </Button>
             <Button onClick={onClose}>

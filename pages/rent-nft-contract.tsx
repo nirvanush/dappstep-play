@@ -35,10 +35,26 @@ const swapArrayLocs = function (arr, index1, index2) {
   arr[index2] = temp;
 };
 
+// rent
 //[contractToken, unspentBoxes]
 //[updatedContractBox, funds, change, fee]
+
+// update
+//[contractToken, unspentBoxes]
+//[updatedContractBox, change, fee]
+
+// release
+//[contractToken, unspentBoxes]
+//[updatedContractBox, change, fee]
+
+
+// R4 - Owner address
+// R5 - Rent price for the whole period
+// R6 - Rent period in timestamp delta (eg: month = 1000 * 60 * 60 * 24 * 30)
+// R7 - Renter address
+// R8 - Rent end timestamp (rent started timestamp + R6)
 const baseContract = `
-{
+{  
   val defined = OUTPUTS.size >= 3
   val isSendingToSeller = OUTPUTS(1).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
   val isAmountOk = OUTPUTS(1).value == INPUTS(0).R5[Long].get
@@ -61,38 +77,44 @@ const baseContract = `
   // general purpose stuff
   val isHasRenter = INPUTS(0).R7[Coll[Byte]].isDefined
 
-  val isRentingExpired = INPUTS(0).R8[Long].get < CONTEXT.preHeader.timestamp
+  val isRentingExpired = INPUTS(0).R8[Long].isDefined && INPUTS(0).R8[Long].get < CONTEXT.preHeader.timestamp
   val isSentByOwner = OUTPUTS(1).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
 
+  val isLegitRentingTx = allOf(Coll(
+    isSendingToSeller,
+    isAmountOk,
+    isOwnerStillSame,
+    isAmountStillSame,
+    isRentalPeriodSame,
+    isSettingTheRenter,
+    isSettingEndTimeInAcceptableRange
+  ))
   if (!isHasRenter) {
-    // this is renting tx
-    sigmaProp(if(defined) {
-      isSentByOwner ||
-      allOf(Coll(
-        isSendingToSeller,
-        isAmountOk,
+    if (isSentByOwner) { // cancel listing / edit listing
+      val isSettingRenter = OUTPUTS(0).R7[Coll[Byte]].isDefined
+      val isSettingRentEnd = OUTPUTS(0).R8[Long].isDefined
+      sigmaProp(allOf(Coll(
         isOwnerStillSame,
-        isAmountStillSame,
-        isRentalPeriodSame,
-        isSettingTheRenter,
-        isSettingEndTimeInAcceptableRange
-      ))
+        !isSettingRenter,
+        !isSettingRentEnd
+      )))
     } else {
-        false
-      }
-        )
+      // renting tx
+      sigmaProp(isLegitRentingTx)
+    }
   } else {
-    // this end of period
-    sigmaProp(allOf(Coll(
-      isSentByOwner,
-      isRentingExpired
-    )))
+    if (isSentByOwner) { // rent expired, the owner can clime his token back
+      sigmaProp(isRentingExpired)
+    } else { // Allow renter to renew before rent over
+      val isSentBySameRenter = OUTPUTS(0).R7[Coll[Byte]].get == OUTPUTS(1).propositionBytes
+      sigmaProp(isSentBySameRenter && isLegitRentingTx && !isRentingExpired)
+    }
   }
 }
 `;
 
 async function listTokens() {
-  await ergoConnector.nautilus.connect();
+  // await ergoConnector.nautilus.connect();
 
   return await loadTokensFromWallet();
 }
@@ -149,36 +171,33 @@ export default function Send() {
     // localStorage.setItem('contract', value);
 
     let resp;
+    const compile = _.debounce(async () => {
+      try {
+        resp = await p2sNode(`${value}`);
+  
+        if (resp.error) {
+          const message = resp.error;
 
-    try {
-      resp = await p2sNode(`${value}`);
-
-      if (resp.error) {
-        const message = resp.error;
-        // const lineNum = parseInt(message.split('\n')[1].replace('line ', ''));
-        // const $numberEl = document
-        //   .querySelector('.cm-lineNumbers')
-        //   .querySelectorAll('.cm-gutterElement')[lineNum];
-
-        // $numberEl.classList.add('errorCircle');
-        setCompileError(message);
-        setContractAddress(null);
-        return;
+          setCompileError(message);
+          setContractAddress(null);
+          return;
+        }
+  
+        setContractAddress(resp.address);
+        setCompileError(null);
+        const items = await listLockedListings(resp.address);
+        setLockedTokens(items);
+      } catch (e) {
+        // console.log(e.error);
       }
+    }, 1000);
 
-      setContractAddress(resp.address);
-      setCompileError(null);
-      const items = await listLockedListings(resp.address);
-      setLockedTokens(items);
-    } catch (e) {
-      // console.log(e.error);
-    }
+    compile();
   }
 
   async function handleLockAsset() {
     setIsGeneratingLockTx(true);
     // connect to ergo wallet
-    await ergoConnector.nautilus.connect();
     let resp;
 
     try {
@@ -196,7 +215,7 @@ export default function Send() {
     const tree = new Address(changeAddress).ergoTree;
 
     const price = minBoxValue * 2;
-    const period = 1000*60*5;
+    const period = 1000*60*10;
 
     try {
       unsignedTx = await sendFunds({
@@ -228,8 +247,6 @@ export default function Send() {
     // connect to ergo wallet
     if (!tokenToRent) return;
 
-    await ergoConnector.nautilus.connect();
-
     const changeAddress = await ergo.get_change_address();
     const tree = new Address(changeAddress).ergoTree;
     let unsignedTx;
@@ -249,14 +266,19 @@ export default function Send() {
       setIsGeneratingRentTx(false);
     }
 
+    const deltaTime = tokenToRent.additionalRegisters.R6.renderedValue;
     // on top of regular send funds tx do some enrichements.
     // this will move to an external package.
     //[contractToken, unspentBoxes]
+    tokenToRent.additionalRegisters.R4 = tokenToRent.additionalRegisters.R4.serializedValue
+    tokenToRent.additionalRegisters.R5 = tokenToRent.additionalRegisters.R5.serializedValue
+    tokenToRent.additionalRegisters.R6 = tokenToRent.additionalRegisters.R6.serializedValue
+
     unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs]; 
     const newBox = JSON.parse(JSON.stringify(tokenToRent));
     newBox.additionalRegisters.R7 = await encodeHex(tree)
-    
-    const endOfRent = new Date().getTime() + parseInt(newBox.additionalRegisters.R6.renderedValue);
+
+    const endOfRent = new Date().getTime() + parseInt(deltaTime);
     
     newBox.additionalRegisters.R8 = await encodeNum(endOfRent.toString())
     const resetBox = _.pick(newBox, ['additionalRegisters', 'value', 'ergoTree', 'creationHeight', 'assets'])
@@ -271,9 +293,20 @@ export default function Send() {
 
   async function signAndSubmit(unsignedTx) {
     const wallet = await new SignerWallet().fromMnemonics('prevent hair cousin critic embrace okay burger choice pilot rice sure clerk absurd patrol tent');
-    // const signedTx = await ergo.sign_tx(JSON.parse(unsignedTx));
     setIsSubmittingTx(true)
-    const signedTx = wallet.sign(JSON.parse(unsignedTx));
+
+    let signedTx;
+    try {
+      signedTx = await ergo.sign_tx(JSON.parse(unsignedTx));
+      // signedTx = wallet.sign(JSON.parse(unsignedTx));
+    } catch(e) {
+      console.error(e);
+      debugger
+      setIsSubmittingTx(false)
+      e.info  ? setTxFeedback(e.info) : setTxFeedback(e);
+      return;
+    }
+
     console.log({ signedTx });
 
     let txCheckResponse
