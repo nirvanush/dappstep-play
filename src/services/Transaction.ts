@@ -100,7 +100,7 @@ export async function sendFunds(args: { funds: Funds; toAddress: string; additio
         extension: {},
       };
     }),
-    outputs: [changeBox, fundBox, feeBox],
+    outputs: [fundBox, changeBox, feeBox],
     dataInputs: [],
     fee: optimalTxFee,
   };

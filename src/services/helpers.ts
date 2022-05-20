@@ -23,6 +23,36 @@ export async function p2sNode(contract: string) {
     });
 }
 
+export async function checkTx(tx: string) {
+  const url = 'https://0dj9ag2t1h.execute-api.us-west-1.amazonaws.com/transactions/check';
+  return await fetch(url, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: tx,
+  })
+    .then((res) => res.json())
+    .then((res) => {
+      if (res.success === false) {
+        console.error(res.detail);
+        throw new Error(res.detail);
+      }
+      return res;
+    });
+}
+
+// export async function checkTx(tx: string) {
+//   return await post('', tx)
+//     .then((res) => res.json())
+//     .then((res) => {
+//       if (res.success === false) throw new Error();
+//       return res;
+//     });
+// }
+
+
 export async function currentHeight() {
   return request.get('https://api.ergoplatform.com/api/v0/blocks?limit=1').then((res) => res.body.items[0].height);
 }
@@ -55,15 +85,6 @@ export async function getBalance(addr: string): Promise<Balance> {
   return await fetch(`https://api.ergoplatform.com/api/v1/addresses/${addr}/balance/confirmed`).then((res) =>
     res.json(),
   );
-}
-
-export async function checkTx(tx: string) {
-  return await post('http://213.239.193.208:9053/transactions/check', tx)
-    .then((res) => res.json())
-    .then((res) => {
-      if (res.success === false) throw new Error();
-      return res;
-    });
 }
 
 export function isDappConnectorInstalled() {

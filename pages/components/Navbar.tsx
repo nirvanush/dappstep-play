@@ -16,6 +16,7 @@ const Links = [
   { title: 'Play', href: 'https://play.dappstep.com' },
   { title: 'Tutorials', href: 'https://www.dappstep.com' },
   { title: 'Blog', href: 'https://www.dappstep.com/blog' },
+  { title: 'Github', href: 'https://github.com/nirvanush/dappstep-play' },
 ];
 
 const NavLink = ({ href, children }: { href: string; children: ReactNode }) => (

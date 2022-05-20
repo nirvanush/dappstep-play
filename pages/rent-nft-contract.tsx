@@ -16,15 +16,17 @@ import { ChevronDownIcon } from '@chakra-ui/icons';
 import { Address, minBoxValue } from '@coinbarn/ergo-ts';
 import { blake2b256 } from '@multiformats/blake2/blake2b';
 import { Serializer } from '@coinbarn/ergo-ts/dist/serializer';
-import { sendToken, loadTokensFromWallet } from '../src/services/GenerateSendFundsTx';
+import { sendToken, loadTokensFromWallet, currentHeight } from '../src/services/GenerateSendFundsTx';
 import { sendFunds } from '../src/services/Transaction';
 import { checkTx, p2sNode } from '../src/services/helpers';
-import { encodeHex, encodeLongTuple, encodeNum, encodeByteArray } from '../src/lib/serializer';
+import { encodeHex, encodeLongTuple, encodeNum, encodeByteArray, decodeNum } from '../src/lib/serializer';
 import { get } from '../src/lib/rest';
 import styles from '../styles/Home.module.css';
 import ErgoScriptEditor from './components/ErgoScriptEditor';
 import TransactionPreviewModal from './components/TransactionPreviewModal';
 import SignerWallet from '../src/services/WalletFromMnemonics';
+import { NANO_ERG_IN_ERG } from '../src/services/constants';
+import _ from 'lodash';
 
 const swapArrayLocs = function (arr, index1, index2) {
   const temp = arr[index1];
@@ -33,23 +35,39 @@ const swapArrayLocs = function (arr, index1, index2) {
   arr[index2] = temp;
 };
 
+//[contractToken, unspentBoxes]
+//[updatedContractBox, funds, change, fee]
 const baseContract = `
 {
   val defined = OUTPUTS.size >= 3
-  val isSendingToSeller = OUTPUTS(0).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
-  val isAmountOk = OUTPUTS(0).value == INPUTS(0).R5[Long].get
+  val isSendingToSeller = OUTPUTS(1).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
+  val isAmountOk = OUTPUTS(1).value == INPUTS(0).R5[Long].get
+  // now check that the locked box was modified correctly
   val isOwnerStillSame = OUTPUTS(0).R4[Coll[Byte]].get == INPUTS(0).R4[Coll[Byte]].get
   val isAmountStillSame = OUTPUTS(0).R5[Long].get == INPUTS(0).R5[Long].get
-  val isRentalPeriodSame = OUTPUTS(0).R6[Int].get == INPUTS(0).R6[Int].get
-  val isSettingTheRenter = OUTPUTS(1).R7[Coll[Byte]].get == SELF.propositionBytes
+  val isRentalPeriodSame = OUTPUTS(0).R6[Long].get == INPUTS(0).R6[Long].get
+  val gracePeriod = 3600000L
+  val timestamp = CONTEXT.preHeader.timestamp
+  val leftRange =  timestamp + INPUTS(0).R6[Long].get - gracePeriod
+  val rightRange = timestamp + INPUTS(0).R6[Long].get + gracePeriod
+
+  val isRentENDHigher = OUTPUTS(0).R8[Long].get > leftRange
+  val isRentENDLower = OUTPUTS(0).R8[Long].get < rightRange
+  val isSettingEndTimeInAcceptableRange = isRentENDHigher && isRentENDLower
+  
+  // adding more registers to that box
+  val isSettingTheRenter = OUTPUTS(0).R7[Coll[Byte]].get == OUTPUTS(1).propositionBytes
+  
+  // general purpose stuff
   val isHasRenter = INPUTS(0).R7[Coll[Byte]].isDefined
-  val isExpireDateValid = HEIGHT + OUTPUTS(0).R6[Int].get == OUTPUTS(0).R8[Int].get
-  val isSentByOwner = SELF.propositionBytes == OUTPUTS(0).R4[Coll[Byte]].get
-  // TODO: check that SELF is really related to the box that is being guarded by SC.
+
+  val isRentingExpired = INPUTS(0).R8[Long].get < CONTEXT.preHeader.timestamp
+  val isSentByOwner = OUTPUTS(1).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
 
   if (!isHasRenter) {
     // this is renting tx
     sigmaProp(if(defined) {
+      isSentByOwner ||
       allOf(Coll(
         isSendingToSeller,
         isAmountOk,
@@ -57,17 +75,19 @@ const baseContract = `
         isAmountStillSame,
         isRentalPeriodSame,
         isSettingTheRenter,
-        isExpireDateValid,
-        !isSentByOwner
-      )) || isSentByOwner // todo: edit functionality
+        isSettingEndTimeInAcceptableRange
+      ))
     } else {
         false
-      })
+      }
+        )
   } else {
-    // this is release tx
-    sigmaProp(true)
+    // this end of period
+    sigmaProp(allOf(Coll(
+      isSentByOwner,
+      isRentingExpired
+    )))
   }
-
 }
 `;
 
@@ -89,13 +109,17 @@ export default function Send() {
   const [selectedToken, setSelectedToken] = useState({ tokenId: '', name: '' });
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [lockedTokens, setLockedTokens] = useState([]);
-  const [tokenToRelease, setTokenToRelease] = useState({ assets: [{ name: '' }] });
+  const [tokenToRent, setTokenToRent] = useState({ assets: [{ name: '' }] });
   const [compileError, setCompileError] = useState('');
   const [contractAddress, setContractAddress] = useState(null);
   const [contract, setContract] = useState('');
   const [unsignedTxJson, setUnsignedTxJson] = useState({});
   const [isGeneratingLockTx, setIsGeneratingLockTx] = useState(false);
-  const [isGeneratingReleaseTx, setIsGeneratingReleaseTx] = useState(false);
+  const [isGeneratingRentTx, setIsGeneratingRentTx] = useState(false);
+  const [isSubmittingTx, setIsSubmittingTx] = useState(false);
+  const [txFeedback, setTxFeedback] = useState(false);
+  const [txHash, setTxHash] = useState(false);
+
   const [pin, setPin] = useState('1234');
 
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -122,7 +146,7 @@ export default function Send() {
 
   async function handleScriptChanged(value) {
     setContract(value);
-    localStorage.setItem('contract', value);
+    // localStorage.setItem('contract', value);
 
     let resp;
 
@@ -168,24 +192,29 @@ export default function Send() {
     if (!selectedToken) return;
 
     let unsignedTx;
+    const changeAddress = await ergo.get_change_address();
+    const tree = new Address(changeAddress).ergoTree;
 
-    const hashedPin = await encodeByteArray(await blake2b256.encode(pin));
+    const price = minBoxValue * 2;
+    const period = 1000*60*5;
 
     try {
       unsignedTx = await sendFunds({
         funds: {
-          ERG: minBoxValue,
+          ERG: minBoxValue + minBoxValue/2,
           tokens: [{ tokenId: selectedToken.tokenId, amount: 1 }],
         },
         toAddress: resp.address,
         additionalRegisters: {
-          R4: hashedPin,
-        },
+          R4: await encodeHex(tree), // owner address
+          R5: await encodeNum(price.toString()),
+          R6: await encodeNum(period.toString()),
+        }
       });
     } catch (e) {
       console.error(e);
       alert(e.message);
-      setIsGeneratingReleaseTx(false);
+      setIsGeneratingRentTx(false);
     }
 
     console.log({ unsignedTx });
@@ -194,10 +223,10 @@ export default function Send() {
     onOpen();
   }
 
-  async function handleReleaseToken() {
-    setIsGeneratingReleaseTx(true);
+  async function handleRentToken() {
+    setIsGeneratingRentTx(true);
     // connect to ergo wallet
-    if (!tokenToRelease) return;
+    if (!tokenToRent) return;
 
     await ergoConnector.nautilus.connect();
 
@@ -209,55 +238,71 @@ export default function Send() {
     try {
       unsignedTx = await sendFunds({
         funds: {
-          ERG: 0,
+          ERG: parseInt(tokenToRent.additionalRegisters.R5.renderedValue),
           tokens: [],
         },
-        toAddress: changeAddress,
-        additionalRegisters: {
-          R4: await encodeHex(Serializer.stringToHex(pin)),
-        },
+        toAddress: Address.fromErgoTree(tokenToRent.additionalRegisters.R4.renderedValue).address,
+        additionalRegisters: {},
       });
     } catch (e) {
       alert(e.message);
-      setIsGeneratingReleaseTx(false);
+      setIsGeneratingRentTx(false);
     }
 
     // on top of regular send funds tx do some enrichements.
     // this will move to an external package.
-    unsignedTx.inputs.push(Object.assign({}, tokenToRelease, { extension: {} }));
-    unsignedTx.outputs[0] = Object.assign({}, unsignedTx.outputs[0], {
-      additionalRegisters: {
-        R4: await encodeHex(Serializer.stringToHex(pin)),
-      },
-    });
+    //[contractToken, unspentBoxes]
+    unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs]; 
+    const newBox = JSON.parse(JSON.stringify(tokenToRent));
+    newBox.additionalRegisters.R7 = await encodeHex(tree)
+    
+    const endOfRent = new Date().getTime() + parseInt(newBox.additionalRegisters.R6.renderedValue);
+    
+    newBox.additionalRegisters.R8 = await encodeNum(endOfRent.toString())
+    const resetBox = _.pick(newBox, ['additionalRegisters', 'value', 'ergoTree', 'creationHeight', 'assets'])
 
-    unsignedTx.outputs[1] = Object.assign({}, tokenToRelease, { ergoTree: tree });
-
-    swapArrayLocs(unsignedTx.inputs, 0, 1);
-
-    console.log(unsignedTx);
+    //[updatedContractBox, funds, change, fee]
+    unsignedTx.outputs = [resetBox, ...unsignedTx.outputs];
+    console.log({unsignedTx});
     setUnsignedTxJson(JSON.stringify(unsignedTx));
-    setIsGeneratingReleaseTx(false);
+    setIsGeneratingRentTx(false);
     onOpen();
   }
 
   async function signAndSubmit(unsignedTx) {
     const wallet = await new SignerWallet().fromMnemonics('prevent hair cousin critic embrace okay burger choice pilot rice sure clerk absurd patrol tent');
     // const signedTx = await ergo.sign_tx(JSON.parse(unsignedTx));
+    setIsSubmittingTx(true)
     const signedTx = wallet.sign(JSON.parse(unsignedTx));
-    console.log(signedTx);
+    console.log({ signedTx });
 
-    const txCheckResponse = await checkTx(signedTx);
-    console.log(txCheckResponse);
-    return;
+    let txCheckResponse
+
+    try {
+      txCheckResponse = await checkTx(signedTx);
+
+      // stupid lazy hack to distinguish between txHash and error message
+      if (txCheckResponse.message.length == 64) {
+        setTxHash(txCheckResponse.message);
+        setTxFeedback(null);
+      } else {
+        setTxFeedback(txCheckResponse.message)
+        setTxHash(null)
+      }
+
+    } catch(e) {
+      console.log(e);
+      debugger
+      console.log(txCheckResponse);
+      setIsSubmittingTx(false)
+    }
+
     // submit tx
     const txHash = await ergo.submit_tx(signedTx);
 
     console.log(`https://explorer.ergoplatform.com/en/transactions/${txHash}`);
-
+    setIsSubmittingTx(false)
     return txHash;
-    // window.open(`https://api.ergoplatform.com/api/v1/boxes/unspent/byAddress/${resp.address}`);
-    window.open(`https://explorer.ergoplatform.com/en/transactions/${txHash}`);
   }
 
   return (
@@ -265,18 +310,21 @@ export default function Send() {
       <TransactionPreviewModal
         isOpen={isOpen}
         onClose={onClose}
+        isSubmitting={isSubmittingTx}
+        feedback={txFeedback}
+        txHash={txHash}
         unsignedTx={unsignedTxJson}
         handleSubmit={() => signAndSubmit(unsignedTxJson)}
       />
 
       <Stack spacing={6}>
         <Heading as="h3" size="lg">
-          Interactive Example: Pin lock contract
+          Interactive Example: Rent NFT
         </Heading>
 
         <Flex>
           <Box w="50%">
-            <ErgoScriptEditor onChange={handleScriptChanged} height="250px" code={contract} />
+            <ErgoScriptEditor onChange={handleScriptChanged} height="600px" code={contract} />
           </Box>
           <Box w="50%" paddingLeft={10}>
             {compileError && <div className="compile-error">{compileError}</div>}
@@ -314,7 +362,7 @@ export default function Send() {
       </div>
 
       <div className="step-section" data-title="1) Lock asset">
-        Pin:{` `}
+        Price:{` `}
         <Input placeholder="pin" value={pin} onChange={(e) => setPin(e.target.value)} width={200} />
         <Button
           onClick={handleLockAsset}
@@ -327,14 +375,14 @@ export default function Send() {
         </Button>
       </div>
 
-      <div className="step-section" data-title="2) Release asset">
+      <div className="step-section" data-title="2) Rent asset">
         <Menu>
           <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
-            {tokenToRelease?.assets[0].name || 'Select token to release'}
+            {tokenToRent?.assets[0].name || 'Select token to rent'}
           </MenuButton>
           <MenuList>
             {lockedTokens.map((box) => (
-              <MenuItem onClick={() => setTokenToRelease(box)} key={box.boxId}>
+              <MenuItem onClick={() => setTokenToRent(box)} key={box.boxId}>
                 {box.assets[0]?.name}
               </MenuItem>
             ))}
@@ -342,20 +390,20 @@ export default function Send() {
         </Menu>
 
         <Button
-          onClick={handleReleaseToken}
+          onClick={handleRentToken}
           width="200px"
           colorScheme="blue"
-          isLoading={isGeneratingReleaseTx}
-          isDisabled={!tokenToRelease?.assets[0].name}
+          isLoading={isGeneratingRentTx}
+          isDisabled={!tokenToRent?.assets[0].name}
         >
-          Release token
+          Rent token
         </Button>
       </div>
       <div className="dapp-footer">
         <Heading as="h3" size="sm" style={{ marginTop: 50 }}>
           References:
         </Heading>
-        <ul>
+        {/* <ul>
           <li>
             <a
               href="https://github.com/ergoplatform/ergoscript-by-example/blob/main/pinLockContract.md"
@@ -365,8 +413,98 @@ export default function Send() {
               Ergoscript by example: Pin lock contract
             </a>
           </li>
-        </ul>
+        </ul> */}
       </div>
     </div>
   );
+}
+
+
+const lockTx = {
+  inputs: ['user unspent boxes'],
+  outputs: [
+    {
+      value: 0.0001,
+      address: '<contract_address>',
+      assets: [
+        { name: 'Token to rent', tokenId: '123' }
+      ],
+      additionalRegisters: {
+        R4: '<owner address>',
+        R5: 3, // price
+        R6: 2, // months period
+      }
+    },
+    { value: 0.0001 }, // fee
+    { value: 1111 } // change box
+  ]
+}
+
+const rentTx = {
+  inputs: [
+    {
+      value: 0.0001,
+      address: '<contract_address>',
+      assets: [
+        { name: 'Token to rent', tokenId: '123' }
+      ],
+      additionalRegisters: {
+        R4: '<owner address>',
+        R5: 3, // price
+        R6: 2, // months period
+      }
+    },
+    { value: 11111 } // unspent boxes
+  ],
+  outputs: [
+    {
+      value: 0.0001,
+      address: '<contract_address>',
+      assets: [
+        { name: 'Token to rent', tokenId: '123' }
+      ],
+      additionalRegisters: {
+        R4: '<owner address>',
+        R5: 3, // price
+        R6: 2, // months period
+        R7: '<renter address>',
+        R8: 'unlock time'
+      }
+    },
+    {
+      value: 3 * 2, // price
+      address: '<owner address>'
+    },
+    { value: 0.0001 }, // fee
+    { value: 1111 } // change box
+  ]
+}
+
+const releaseTx = {
+  inputs: [
+    {
+      value: 0.0001,
+      address: '<contract_address>',
+      assets: [
+        { name: 'Token to rent', tokenId: '123' }
+      ],
+      additionalRegisters: {
+        R4: '<owner address>',
+        R5: 3, // price
+        R6: 2, // months period
+        R7: '<renter address>', // ????
+        R8: 'unlock time' // ????
+      }
+    }
+  ],
+  outputs: [
+    {
+      value: 0.0001,
+      address: '<owner address>',
+      assets: [
+        { name: 'Token to rent', tokenId: '123' }
+      ],
+      additionalRegisters: {}
+    }
+  ]
 }

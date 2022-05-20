@@ -43,7 +43,6 @@ export default class SignerWallet {
   }
 
   sign(unsignedTx: UnsignedTx) : string {
-    debugger
     const unspentBoxes = ErgoBoxes.from_boxes_json(unsignedTx.inputs);
     const dataInputBoxes = ErgoBoxes.from_boxes_json(unsignedTx.dataInputs);
     const tx = UnsignedTransaction.from_json(JSONBig.stringify(unsignedTx));
@@ -79,8 +78,6 @@ async function createWallet(mnemonics: string, context: Object) {
   // derive the initial secret key, this is the change key and is also the owner of the boxes used as inputs
   const changePath = DerivationPath.from_string("m/44'/429'/0'/0/0");
   const changeSk = extendedSecretKey.derive(changePath);
-
-  console.log(changeSk.public_key().to_address().to_base58(NetworkPrefix.Mainnet));
 
   const baseAddress = extendedSecretKey.public_key().to_address();
 
