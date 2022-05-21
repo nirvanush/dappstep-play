@@ -56,7 +56,9 @@ const swapArrayLocs = function (arr, index1, index2) {
 const baseContract = `
 {  
   val defined = OUTPUTS.size >= 3
-  val isSendingToSeller = OUTPUTS(1).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
+
+  val txSenderAddress = OUTPUTS(OUTPUTS.size - 2).propositionBytes
+
   val isAmountOk = OUTPUTS(1).value == INPUTS(0).R5[Long].get
   // now check that the locked box was modified correctly
   val isOwnerStillSame = OUTPUTS(0).R4[Coll[Byte]].get == INPUTS(0).R4[Coll[Byte]].get
@@ -72,22 +74,22 @@ const baseContract = `
   val isSettingEndTimeInAcceptableRange = isRentENDHigher && isRentENDLower
   
   // adding more registers to that box
-  val isSettingTheRenter = OUTPUTS(0).R7[Coll[Byte]].get == OUTPUTS(1).propositionBytes
+  val isSendingFundsToSeller = OUTPUTS(1).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
+  val isSettingTheRenter = OUTPUTS(0).R7[Coll[Byte]].isDefined && OUTPUTS(0).R7[Coll[Byte]].get == txSenderAddress
   
   // general purpose stuff
   val isHasRenter = INPUTS(0).R7[Coll[Byte]].isDefined
 
   val isRentingExpired = INPUTS(0).R8[Long].isDefined && INPUTS(0).R8[Long].get < CONTEXT.preHeader.timestamp
-  val isSentByOwner = OUTPUTS(1).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
-
+  val isSentByOwner = txSenderAddress == INPUTS(0).R4[Coll[Byte]].get
   val isLegitRentingTx = allOf(Coll(
-    isSendingToSeller,
+    isSendingFundsToSeller,
+    isSettingTheRenter,
+    isSettingEndTimeInAcceptableRange,
     isAmountOk,
     isOwnerStillSame,
     isAmountStillSame,
     isRentalPeriodSame,
-    isSettingTheRenter,
-    isSettingEndTimeInAcceptableRange
   ))
   if (!isHasRenter) {
     if (isSentByOwner) { // cancel listing / edit listing
@@ -106,7 +108,7 @@ const baseContract = `
     if (isSentByOwner) { // rent expired, the owner can clime his token back
       sigmaProp(isRentingExpired)
     } else { // Allow renter to renew before rent over
-      val isSentBySameRenter = OUTPUTS(0).R7[Coll[Byte]].get == OUTPUTS(1).propositionBytes
+      val isSentBySameRenter = OUTPUTS(0).R7[Coll[Byte]].get == txSenderAddress
       sigmaProp(isSentBySameRenter && isLegitRentingTx && !isRentingExpired)
     }
   }
@@ -220,7 +222,7 @@ export default function Send() {
     try {
       unsignedTx = await sendFunds({
         funds: {
-          ERG: minBoxValue + minBoxValue/2,
+          ERG: minBoxValue * 2,
           tokens: [{ tokenId: selectedToken.tokenId, amount: 1 }],
         },
         toAddress: resp.address,
@@ -301,7 +303,6 @@ export default function Send() {
       // signedTx = wallet.sign(JSON.parse(unsignedTx));
     } catch(e) {
       console.error(e);
-      debugger
       setIsSubmittingTx(false)
       e.info  ? setTxFeedback(e.info) : setTxFeedback(e);
       return;
@@ -312,7 +313,7 @@ export default function Send() {
     let txCheckResponse
 
     try {
-      txCheckResponse = await checkTx(signedTx);
+      txCheckResponse = await checkTx(JSON.stringify(signedTx));
 
       // stupid lazy hack to distinguish between txHash and error message
       if (txCheckResponse.message.length == 64) {
@@ -325,9 +326,9 @@ export default function Send() {
 
     } catch(e) {
       console.log(e);
-      debugger
       console.log(txCheckResponse);
       setIsSubmittingTx(false)
+      return
     }
 
     // submit tx
