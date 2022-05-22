@@ -4,6 +4,7 @@ cdk.out
 .idea
 .vscode
 .hidden
+.gitconfig
 # Dependency directories
 node_modules/
 
