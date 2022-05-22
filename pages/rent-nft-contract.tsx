@@ -308,8 +308,9 @@ export default function Send() {
 
   async function signAndSubmit(unsignedTx) {
     const wallet = await new SignerWallet().fromMnemonics(
-      'prevent hair cousin critic embrace okay burger choice pilot rice sure clerk absurd patrol tent',
+      'prevent hair cousin critic embrace okay burger choice pilot rice sure clerk absurd patrol tent'
     );
+
     setIsSubmittingTx(true);
 
     let signedTx;
