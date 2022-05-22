@@ -9,6 +9,7 @@ import {
   Button,
 } from '@chakra-ui/react';
 import Image from 'next/image';
+import { TxIoView } from '@ertravi/txio-view-react';
 
 function TransactionPreviewModal({
   isOpen,
@@ -19,6 +20,8 @@ function TransactionPreviewModal({
   txHash = null,
   isSubmitting,
 }) {
+  console.log(unsignedTx);
+  if (typeof unsignedTx !== 'string') return null;
   return (
     <>
       <Modal closeOnOverlayClick={false} isOpen={isOpen} onClose={onClose} size="6xl">
@@ -28,7 +31,8 @@ function TransactionPreviewModal({
           <ModalCloseButton />
           <ModalBody pb={6}>
             <div style={{ border: '1px gray solid', maxHeight: 550 }}>
-              <Image src="/utxo-change.svg" width={1000} height={500} />
+              {/* <Image src="/utxo-change.svg" width={1000} height={500} /> */}
+              <TxIoView width={1000} height={500} ergoTx={JSON.parse(unsignedTx) as any} />
             </div>
             {feedback && <div>{feedback}</div>}
             {txHash && (
