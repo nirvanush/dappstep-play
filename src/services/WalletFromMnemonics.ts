@@ -20,13 +20,13 @@ import {
   SecretKey,
   SecretKeys,
   TxBuilder,
-  UnsignedInput, 
-  UnsignedInputs, 
+  UnsignedInput,
+  UnsignedInputs,
   UnsignedTransaction,
-  Wallet
-} from "ergo-lib-wasm-browser";
-import request from "superagent";
-import JSONBig from "json-bigint";
+  Wallet,
+} from 'ergo-lib-wasm-browser';
+import request from 'superagent';
+import JSONBig from 'json-bigint';
 import { UnsignedTx } from './connector_types';
 
 export default class SignerWallet {
@@ -36,13 +36,15 @@ export default class SignerWallet {
   constructor() {}
 
   async fromMnemonics(mnemonics: string): Promise<SignerWallet> {
-    this.blockContext = await request.get('https://api.ergoplatform.com/api/v1/blocks/headers?limit=10').then(resp => resp.body.items)
+    this.blockContext = await request
+      .get('https://api.ergoplatform.com/api/v1/blocks/headers?limit=10')
+      .then((resp) => resp.body.items);
     this.wallet = await createWallet(mnemonics, this.blockContext);
 
     return this;
   }
 
-  sign(unsignedTx: UnsignedTx) : string {
+  sign(unsignedTx: UnsignedTx): string {
     const unspentBoxes = ErgoBoxes.from_boxes_json(unsignedTx.inputs);
     const dataInputBoxes = ErgoBoxes.from_boxes_json(unsignedTx.dataInputs);
     const tx = UnsignedTransaction.from_json(JSONBig.stringify(unsignedTx));
@@ -51,11 +53,7 @@ export default class SignerWallet {
     return signed.to_json();
   }
 
-  private _sign(
-    unsigned: UnsignedTransaction,
-    unspentBoxes: ErgoBoxes,
-    dataInputBoxes: ErgoBoxes,
-  ) {
+  private _sign(unsigned: UnsignedTransaction, unspentBoxes: ErgoBoxes, dataInputBoxes: ErgoBoxes) {
     const blockHeaders = BlockHeaders.from_json(this.blockContext);
     const preHeader = PreHeader.from_block_header(blockHeaders.get(0));
     const signContext = new ErgoStateContext(preHeader, blockHeaders);
@@ -66,12 +64,14 @@ export default class SignerWallet {
 
 async function createWallet(mnemonics: string, context: Object) {
   const seed = Mnemonic.to_seed(
-      // "prevent hair cousin critic embrace okay burger choice pilot rice sure clerk absurd patrol tent",
-      mnemonics,
-      ""
+    // "prevent hair cousin critic embrace okay burger choice pilot rice sure clerk absurd patrol tent",
+    mnemonics,
+    '',
   );
 
-  const blockContext = await request.get('https://api.ergoplatform.com/api/v1/blocks/headers?limit=10').then(resp => resp.body.items)
+  const blockContext = await request
+    .get('https://api.ergoplatform.com/api/v1/blocks/headers?limit=10')
+    .then((resp) => resp.body.items);
 
   // derive the root extended key/secret
   const extendedSecretKey = ExtSecretKey.derive_master(seed);
@@ -93,4 +93,3 @@ async function createWallet(mnemonics: string, context: Object) {
 
   return wallet;
 }
-

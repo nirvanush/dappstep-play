@@ -14,12 +14,20 @@ import {
 import { useEffect, useState } from 'react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 import { Address, minBoxValue } from '@coinbarn/ergo-ts';
-import { blake2b256 } from '@multiformats/blake2/blake2b';
-import { Serializer } from '@coinbarn/ergo-ts/dist/serializer';
-import { sendToken, loadTokensFromWallet, currentHeight } from '../src/services/GenerateSendFundsTx';
+import {
+  sendToken,
+  loadTokensFromWallet,
+  currentHeight,
+} from '../src/services/GenerateSendFundsTx';
 import { sendFunds } from '../src/services/Transaction';
 import { checkTx, p2sNode } from '../src/services/helpers';
-import { encodeHex, encodeLongTuple, encodeNum, encodeByteArray, decodeNum } from '../src/lib/serializer';
+import {
+  encodeHex,
+  encodeLongTuple,
+  encodeNum,
+  encodeByteArray,
+  decodeNum,
+} from '../src/lib/serializer';
 import { get } from '../src/lib/rest';
 import styles from '../styles/Home.module.css';
 import ErgoScriptEditor from './components/ErgoScriptEditor';
@@ -46,7 +54,6 @@ const swapArrayLocs = function (arr, index1, index2) {
 // release
 //[contractToken, unspentBoxes]
 //[updatedContractBox, change, fee]
-
 
 // R4 - Owner address
 // R5 - Rent price for the whole period
@@ -176,7 +183,7 @@ export default function Send() {
     const compile = _.debounce(async () => {
       try {
         resp = await p2sNode(`${value}`);
-  
+
         if (resp.error) {
           const message = resp.error;
 
@@ -184,7 +191,7 @@ export default function Send() {
           setContractAddress(null);
           return;
         }
-  
+
         setContractAddress(resp.address);
         setCompileError(null);
         const items = await listLockedListings(resp.address);
@@ -217,7 +224,7 @@ export default function Send() {
     const tree = new Address(changeAddress).ergoTree;
 
     const price = minBoxValue * 2;
-    const period = 1000*60*10;
+    const period = 1000 * 60 * 10;
 
     try {
       unsignedTx = await sendFunds({
@@ -230,7 +237,7 @@ export default function Send() {
           R4: await encodeHex(tree), // owner address
           R5: await encodeNum(price.toString()),
           R6: await encodeNum(period.toString()),
-        }
+        },
       });
     } catch (e) {
       console.error(e);
@@ -272,45 +279,55 @@ export default function Send() {
     // on top of regular send funds tx do some enrichements.
     // this will move to an external package.
     //[contractToken, unspentBoxes]
-    tokenToRent.additionalRegisters.R4 = tokenToRent.additionalRegisters.R4.serializedValue
-    tokenToRent.additionalRegisters.R5 = tokenToRent.additionalRegisters.R5.serializedValue
-    tokenToRent.additionalRegisters.R6 = tokenToRent.additionalRegisters.R6.serializedValue
+    tokenToRent.additionalRegisters.R4 = tokenToRent.additionalRegisters.R4.serializedValue;
+    tokenToRent.additionalRegisters.R5 = tokenToRent.additionalRegisters.R5.serializedValue;
+    tokenToRent.additionalRegisters.R6 = tokenToRent.additionalRegisters.R6.serializedValue;
 
-    unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs]; 
+    unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs];
     const newBox = JSON.parse(JSON.stringify(tokenToRent));
-    newBox.additionalRegisters.R7 = await encodeHex(tree)
+    newBox.additionalRegisters.R7 = await encodeHex(tree);
 
     const endOfRent = new Date().getTime() + parseInt(deltaTime);
-    
-    newBox.additionalRegisters.R8 = await encodeNum(endOfRent.toString())
-    const resetBox = _.pick(newBox, ['additionalRegisters', 'value', 'ergoTree', 'creationHeight', 'assets'])
+
+    newBox.additionalRegisters.R8 = await encodeNum(endOfRent.toString());
+    const resetBox = _.pick(newBox, [
+      'additionalRegisters',
+      'value',
+      'ergoTree',
+      'creationHeight',
+      'assets',
+    ]);
 
     //[updatedContractBox, funds, change, fee]
     unsignedTx.outputs = [resetBox, ...unsignedTx.outputs];
-    console.log({unsignedTx});
+    console.log({ unsignedTx });
     setUnsignedTxJson(JSON.stringify(unsignedTx));
     setIsGeneratingRentTx(false);
     onOpen();
   }
 
   async function signAndSubmit(unsignedTx) {
-    const wallet = await new SignerWallet().fromMnemonics('prevent hair cousin critic embrace okay burger choice pilot rice sure clerk absurd patrol tent');
-    setIsSubmittingTx(true)
+    const wallet = await new SignerWallet().fromMnemonics(
+      'prevent hair cousin critic embrace okay burger choice pilot rice sure clerk absurd patrol tent',
+    );
+    setIsSubmittingTx(true);
 
     let signedTx;
+
     try {
       signedTx = await ergo.sign_tx(JSON.parse(unsignedTx));
+
       // signedTx = wallet.sign(JSON.parse(unsignedTx));
-    } catch(e) {
+    } catch (e) {
       console.error(e);
-      setIsSubmittingTx(false)
-      e.info  ? setTxFeedback(e.info) : setTxFeedback(e);
+      setIsSubmittingTx(false);
+      e.info ? setTxFeedback(e.info) : setTxFeedback(e);
       return;
     }
 
     console.log({ signedTx });
 
-    let txCheckResponse
+    let txCheckResponse;
 
     try {
       txCheckResponse = await checkTx(JSON.stringify(signedTx));
@@ -320,22 +337,21 @@ export default function Send() {
         setTxHash(txCheckResponse.message);
         setTxFeedback(null);
       } else {
-        setTxFeedback(txCheckResponse.message)
-        setTxHash(null)
+        setTxFeedback(txCheckResponse.message);
+        setTxHash(null);
       }
-
-    } catch(e) {
+    } catch (e) {
       console.log(e);
       console.log(txCheckResponse);
-      setIsSubmittingTx(false)
-      return
+      setIsSubmittingTx(false);
+      return;
     }
 
     // submit tx
     const txHash = await ergo.submit_tx(signedTx);
 
     console.log(`https://explorer.ergoplatform.com/en/transactions/${txHash}`);
-    setIsSubmittingTx(false)
+    setIsSubmittingTx(false);
     return txHash;
   }
 
@@ -453,92 +469,81 @@ export default function Send() {
   );
 }
 
-
 const lockTx = {
   inputs: ['user unspent boxes'],
   outputs: [
     {
       value: 0.0001,
       address: '<contract_address>',
-      assets: [
-        { name: 'Token to rent', tokenId: '123' }
-      ],
+      assets: [{ name: 'Token to rent', tokenId: '123' }],
       additionalRegisters: {
         R4: '<owner address>',
         R5: 3, // price
         R6: 2, // months period
-      }
+      },
     },
     { value: 0.0001 }, // fee
-    { value: 1111 } // change box
-  ]
-}
+    { value: 1111 }, // change box
+  ],
+};
 
 const rentTx = {
   inputs: [
     {
       value: 0.0001,
       address: '<contract_address>',
-      assets: [
-        { name: 'Token to rent', tokenId: '123' }
-      ],
+      assets: [{ name: 'Token to rent', tokenId: '123' }],
       additionalRegisters: {
         R4: '<owner address>',
         R5: 3, // price
         R6: 2, // months period
-      }
+      },
     },
-    { value: 11111 } // unspent boxes
+    { value: 11111 }, // unspent boxes
   ],
   outputs: [
     {
       value: 0.0001,
       address: '<contract_address>',
-      assets: [
-        { name: 'Token to rent', tokenId: '123' }
-      ],
+      assets: [{ name: 'Token to rent', tokenId: '123' }],
       additionalRegisters: {
         R4: '<owner address>',
         R5: 3, // price
         R6: 2, // months period
         R7: '<renter address>',
-        R8: 'unlock time'
-      }
+        R8: 'unlock time',
+      },
     },
     {
       value: 3 * 2, // price
-      address: '<owner address>'
+      address: '<owner address>',
     },
     { value: 0.0001 }, // fee
-    { value: 1111 } // change box
-  ]
-}
+    { value: 1111 }, // change box
+  ],
+};
 
 const releaseTx = {
   inputs: [
     {
       value: 0.0001,
       address: '<contract_address>',
-      assets: [
-        { name: 'Token to rent', tokenId: '123' }
-      ],
+      assets: [{ name: 'Token to rent', tokenId: '123' }],
       additionalRegisters: {
         R4: '<owner address>',
         R5: 3, // price
         R6: 2, // months period
         R7: '<renter address>', // ????
-        R8: 'unlock time' // ????
-      }
-    }
+        R8: 'unlock time', // ????
+      },
+    },
   ],
   outputs: [
     {
       value: 0.0001,
       address: '<owner address>',
-      assets: [
-        { name: 'Token to rent', tokenId: '123' }
-      ],
-      additionalRegisters: {}
-    }
-  ]
-}
+      assets: [{ name: 'Token to rent', tokenId: '123' }],
+      additionalRegisters: {},
+    },
+  ],
+};

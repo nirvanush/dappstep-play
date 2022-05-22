@@ -6,9 +6,10 @@ import { basicSetup } from '@codemirror/basic-setup';
 
 export default function ErgoScriptEditor({ onChange, code, height = '500px' }) {
   const editor = useRef();
+
   const handleUpdate = (value) => {
     onChange(value);
-  }
+  };
 
   return (
     <CodeMirror

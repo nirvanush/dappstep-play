@@ -52,7 +52,6 @@ export async function checkTx(tx: string) {
 //     });
 // }
 
-
 export async function currentHeight() {
   return request.get('https://api.ergoplatform.com/api/v0/blocks?limit=1').then((res) => res.body.items[0].height);
 }

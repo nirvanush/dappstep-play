@@ -3,13 +3,5 @@
     "^.+\\.(t|j)sx?$": "ts-jest"
   },
   "testMatch": ["**/__tests__/**/*.ts?(x)"],
-  "moduleFileExtensions": [
-    "ts",
-    "tsx",
-    "js",
-    "jsx",
-    "json",
-    "node",
-    "wasm"
-  ]
+  "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json", "node", "wasm"]
 }

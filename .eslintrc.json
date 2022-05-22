@@ -38,10 +38,10 @@
     ],
     "import/named": "off",
     "import/namespace": "off",
-    "import/order": "error",
+    "import/order": "off",
     "react/prop-types": "off",
     "react/react-in-jsx-scope": "off",
-    "prettier/prettier": ["error", {"singleQuote":  true, "printWidth":  100}],
+    "prettier/prettier": ["error", { "singleQuote": true, "printWidth": 100 }],
     "no-restricted-imports": [
       "error",
       {
