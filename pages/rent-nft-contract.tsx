@@ -397,6 +397,8 @@ export default function Send() {
     tokenToRent.additionalRegisters.R4 = tokenToRent.additionalRegisters.R4.serializedValue;
     tokenToRent.additionalRegisters.R5 = tokenToRent.additionalRegisters.R5.serializedValue;
     tokenToRent.additionalRegisters.R6 = tokenToRent.additionalRegisters.R6.serializedValue;
+    tokenToRent.additionalRegisters.R7 = tokenToRent.additionalRegisters.R7.serializedValue;
+    tokenToRent.additionalRegisters.R8 = tokenToRent.additionalRegisters.R8.serializedValue;
 
     unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs];
 
