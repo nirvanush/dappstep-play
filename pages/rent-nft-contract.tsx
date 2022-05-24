@@ -152,7 +152,7 @@ export default function Send() {
   const [txHash, setTxHash] = useState(false);
 
   const [rentPrice, setRentPrice] = useState(0.02);
-  const [rentDays, setRentDays] = useState(1)
+  const [rentDays, setRentDays] = useState(1);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   useEffect(() => {
@@ -343,9 +343,9 @@ export default function Send() {
     unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs];
 
     const newBox = JSON.parse(JSON.stringify(tokenToRent));
- 
+
     newBox.additionalRegisters.R5 = await encodeNum(price.toString());
-    newBox.additionalRegisters.R6 = await encodeNum(period.toString())
+    newBox.additionalRegisters.R6 = await encodeNum(period.toString());
 
     const resetBox = _.pick(newBox, [
       'additionalRegisters',
@@ -356,7 +356,7 @@ export default function Send() {
     ]);
 
     //[updatedContractBox, funds, change, fee]
-    unsignedTx.outputs = [resetBox, ...unsignedTx.outputs.filter(a => a.value != 0)];
+    unsignedTx.outputs = [resetBox, ...unsignedTx.outputs.filter((a) => a.value != 0)];
 
     console.log({ unsignedTx });
     setUnsignedTxJson(JSON.stringify(unsignedTx));
@@ -401,9 +401,9 @@ export default function Send() {
     unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs];
 
     const newBox = JSON.parse(JSON.stringify(tokenToRent));
- 
+
     newBox.additionalRegisters.R5 = await encodeNum(price.toString());
-    newBox.additionalRegisters.R6 = await encodeNum(period.toString())
+    newBox.additionalRegisters.R6 = await encodeNum(period.toString());
 
     const resetBox = _.pick(newBox, [
       'additionalRegisters',
@@ -415,15 +415,13 @@ export default function Send() {
 
     resetBox.ergoTree = new Address(changeAddress).ergoTree;
     //[updatedContractBox, funds, change, fee]
-    unsignedTx.outputs = [resetBox, ...unsignedTx.outputs.filter(a => a.value != 0)];
+    unsignedTx.outputs = [resetBox, ...unsignedTx.outputs.filter((a) => a.value != 0)];
 
     console.log({ unsignedTx });
     setUnsignedTxJson(JSON.stringify(unsignedTx));
     setIsGeneratingRentTx(false);
     onOpen();
   }
-  
-
 
   async function signAndSubmit(unsignedTx) {
     setIsSubmittingTx(true);
@@ -533,15 +531,24 @@ export default function Send() {
 
       <div className="step-section" data-title="1) List asset for rent">
         Rent price (erg):{` `}
-        <Input placeholder="price in Erg" value={rentPrice} onChange={(e) => setRentPrice(e.target.value)} width={100} />
-
+        <Input
+          placeholder="price in Erg"
+          value={rentPrice}
+          onChange={(e) => setRentPrice(e.target.value)}
+          width={100}
+        />
         Days:{` `}
-        <Input placeholder="days of renting" value={rentDays} onChange={(e) => setRentDays(e.target.value)} width={90} />
+        <Input
+          placeholder="days of renting"
+          value={rentDays}
+          onChange={(e) => setRentDays(e.target.value)}
+          width={90}
+        />
         <Button
           onClick={handleLockAsset}
           width="200px"
           isLoading={isLoadingTokens || isGeneratingLockTx}
-          isDisabled={!selectedToken.name || (!rentDays || !rentPrice)}
+          isDisabled={!selectedToken.name || !rentDays || !rentPrice}
           colorScheme="blue"
         >
           List Asset
@@ -585,7 +592,10 @@ export default function Send() {
         </Button>
       </div>
 
-      <div className="step-section" data-title="4) Withdraw (if not rented or rent period has expired)">
+      <div
+        className="step-section"
+        data-title="4) Withdraw (if not rented or rent period has expired)"
+      >
         <Button
           onClick={handleWithdrawToken}
           width="200px"
