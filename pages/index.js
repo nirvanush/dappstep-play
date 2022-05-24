@@ -26,6 +26,11 @@ export default function Home() {
             <h2>Pin Lock Contract &rarr;</h2>
             <p>dApp based on ergoscript-by-example pin lock contract</p>
           </a>
+
+          <a href="/rent-nft-contract" className={styles.card}>
+            <h2>NFT rent contract &rarr;</h2>
+            <p>Simplified dApp + Contract used to rent plots on SigmaValley</p>
+          </a>
         </div>
       </main>
 
