@@ -21,7 +21,7 @@
     "@coinbarn/ergo-ts": "^0.3.0",
     "@emotion/react": "^11.9.0",
     "@emotion/styled": "^11.8.1",
-    "@ertravi/txio-view-react": "^0.0.18",
+    "@ertravi/txio-view-react": "^0.0.21",
     "@multiformats/blake2": "^1.0.9",
     "@types/superagent": "^4.1.15",
     "@uiw/react-codemirror": "^4.7.0",

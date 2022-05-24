@@ -20,8 +20,8 @@ function TransactionPreviewModal({
   txHash = null,
   isSubmitting,
 }) {
-  console.log(unsignedTx);
   if (typeof unsignedTx !== 'string') return null;
+
   return (
     <>
       <Modal closeOnOverlayClick={false} isOpen={isOpen} onClose={onClose} size="6xl">

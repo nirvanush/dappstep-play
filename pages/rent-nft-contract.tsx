@@ -76,8 +76,8 @@ const baseContract = `
   val leftRange =  timestamp + INPUTS(0).R6[Long].get - gracePeriod
   val rightRange = timestamp + INPUTS(0).R6[Long].get + gracePeriod
 
-  val isRentENDHigher = OUTPUTS(0).R8[Long].get > leftRange
-  val isRentENDLower = OUTPUTS(0).R8[Long].get < rightRange
+  val isRentENDHigher = OUTPUTS(0).R8[Long].isDefined && OUTPUTS(0).R8[Long].get > leftRange
+  val isRentENDLower = OUTPUTS(0).R8[Long].isDefined && OUTPUTS(0).R8[Long].get < rightRange
   val isSettingEndTimeInAcceptableRange = isRentENDHigher && isRentENDLower
   
   // adding more registers to that box
@@ -151,8 +151,8 @@ export default function Send() {
   const [txFeedback, setTxFeedback] = useState(false);
   const [txHash, setTxHash] = useState(false);
 
-  const [pin, setPin] = useState('1234');
-
+  const [rentPrice, setRentPrice] = useState(0.02);
+  const [rentDays, setRentDays] = useState(1)
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   useEffect(() => {
@@ -223,8 +223,8 @@ export default function Send() {
     const changeAddress = await ergo.get_change_address();
     const tree = new Address(changeAddress).ergoTree;
 
-    const price = minBoxValue * 2;
-    const period = 1000 * 60 * 10;
+    const price = rentPrice * NANO_ERG_IN_ERG;
+    const period = 1000 * 60 * 60 * 24 * rentDays;
 
     try {
       unsignedTx = await sendFunds({
@@ -306,12 +306,131 @@ export default function Send() {
     onOpen();
   }
 
-  async function signAndSubmit(unsignedTx) {
-    const wallet = await new SignerWallet().fromMnemonics(
-      'prevent hair cousin critic embrace okay burger choice pilot rice sure clerk absurd patrol tent'
-    );
+  async function handleEditListingAsOwner() {
+    setIsGeneratingRentTx(true);
+    // connect to ergo wallet
+    if (!tokenToRent) return;
 
+    const changeAddress = await ergo.get_change_address();
+
+    const price = rentPrice * NANO_ERG_IN_ERG;
+    const period = 1000 * 60 * 60 * 24 * rentDays;
+
+    let unsignedTx;
+
+    // generate unsigned transaction
+    try {
+      unsignedTx = await sendFunds({
+        funds: {
+          ERG: 0,
+          tokens: [],
+        },
+        toAddress: changeAddress,
+        additionalRegisters: {},
+      });
+    } catch (e) {
+      alert(e.message);
+      setIsGeneratingRentTx(false);
+    }
+
+    // on top of regular send funds tx do some enrichements.
+    // this will move to an external package.
+    //[contractToken, unspentBoxes]
+    tokenToRent.additionalRegisters.R4 = tokenToRent.additionalRegisters.R4.serializedValue;
+    tokenToRent.additionalRegisters.R5 = tokenToRent.additionalRegisters.R5.serializedValue;
+    tokenToRent.additionalRegisters.R6 = tokenToRent.additionalRegisters.R6.serializedValue;
+
+    unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs];
+
+    const newBox = JSON.parse(JSON.stringify(tokenToRent));
+ 
+    newBox.additionalRegisters.R5 = await encodeNum(price.toString());
+    newBox.additionalRegisters.R6 = await encodeNum(period.toString())
+
+    const resetBox = _.pick(newBox, [
+      'additionalRegisters',
+      'value',
+      'ergoTree',
+      'creationHeight',
+      'assets',
+    ]);
+
+    //[updatedContractBox, funds, change, fee]
+    unsignedTx.outputs = [resetBox, ...unsignedTx.outputs.filter(a => a.value != 0)];
+
+    console.log({ unsignedTx });
+    setUnsignedTxJson(JSON.stringify(unsignedTx));
+    setIsGeneratingRentTx(false);
+    onOpen();
+  }
+
+  async function handleWithdrawToken() {
+    setIsGeneratingRentTx(true);
+    // connect to ergo wallet
+    if (!tokenToRent) return;
+
+    const changeAddress = await ergo.get_change_address();
+
+    const price = rentPrice * NANO_ERG_IN_ERG;
+    const period = 1000 * 60 * 60 * 24 * rentDays;
+
+    let unsignedTx;
+
+    // generate unsigned transaction
+    try {
+      unsignedTx = await sendFunds({
+        funds: {
+          ERG: 0,
+          tokens: [],
+        },
+        toAddress: changeAddress,
+        additionalRegisters: {},
+      });
+    } catch (e) {
+      alert(e.message);
+      setIsGeneratingRentTx(false);
+    }
+
+    // on top of regular send funds tx do some enrichements.
+    // this will move to an external package.
+    //[contractToken, unspentBoxes]
+    tokenToRent.additionalRegisters.R4 = tokenToRent.additionalRegisters.R4.serializedValue;
+    tokenToRent.additionalRegisters.R5 = tokenToRent.additionalRegisters.R5.serializedValue;
+    tokenToRent.additionalRegisters.R6 = tokenToRent.additionalRegisters.R6.serializedValue;
+
+    unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs];
+
+    const newBox = JSON.parse(JSON.stringify(tokenToRent));
+ 
+    newBox.additionalRegisters.R5 = await encodeNum(price.toString());
+    newBox.additionalRegisters.R6 = await encodeNum(period.toString())
+
+    const resetBox = _.pick(newBox, [
+      'additionalRegisters',
+      'value',
+      'ergoTree',
+      'creationHeight',
+      'assets',
+    ]);
+
+    resetBox.ergoTree = new Address(changeAddress).ergoTree;
+    //[updatedContractBox, funds, change, fee]
+    unsignedTx.outputs = [resetBox, ...unsignedTx.outputs.filter(a => a.value != 0)];
+
+    console.log({ unsignedTx });
+    setUnsignedTxJson(JSON.stringify(unsignedTx));
+    setIsGeneratingRentTx(false);
+    onOpen();
+  }
+  
+
+
+  async function signAndSubmit(unsignedTx) {
     setIsSubmittingTx(true);
+
+    // const wallet = await new SignerWallet().fromMnemonics(
+    //   'prevent hair cousin critic embrace okay burger choice pilot rice sure clerk absurd patrol tent'
+    // );
 
     let signedTx;
 
@@ -412,17 +531,20 @@ export default function Send() {
         </Menu>
       </div>
 
-      <div className="step-section" data-title="1) Lock asset">
-        Price:{` `}
-        <Input placeholder="pin" value={pin} onChange={(e) => setPin(e.target.value)} width={200} />
+      <div className="step-section" data-title="1) List asset for rent">
+        Rent price (erg):{` `}
+        <Input placeholder="price in Erg" value={rentPrice} onChange={(e) => setRentPrice(e.target.value)} width={100} />
+
+        Days:{` `}
+        <Input placeholder="days of renting" value={rentDays} onChange={(e) => setRentDays(e.target.value)} width={90} />
         <Button
           onClick={handleLockAsset}
           width="200px"
           isLoading={isLoadingTokens || isGeneratingLockTx}
-          isDisabled={!selectedToken.name || !pin}
+          isDisabled={!selectedToken.name || (!rentDays || !rentPrice)}
           colorScheme="blue"
         >
-          Lock Asset
+          List Asset
         </Button>
       </div>
 
@@ -448,6 +570,30 @@ export default function Send() {
           isDisabled={!tokenToRent?.assets[0].name}
         >
           Rent token
+        </Button>
+      </div>
+
+      <div className="step-section" data-title="3) Edit listing as an owner">
+        <Button
+          onClick={handleEditListingAsOwner}
+          width="200px"
+          colorScheme="blue"
+          isLoading={isGeneratingRentTx}
+          isDisabled={!tokenToRent?.assets[0].name}
+        >
+          Edit listing
+        </Button>
+      </div>
+
+      <div className="step-section" data-title="4) Withdraw (if not rented or rent period has expired)">
+        <Button
+          onClick={handleWithdrawToken}
+          width="200px"
+          colorScheme="blue"
+          isLoading={isGeneratingRentTx}
+          isDisabled={!tokenToRent?.assets[0].name}
+        >
+          Withdraw listing
         </Button>
       </div>
       <div className="dapp-footer">
