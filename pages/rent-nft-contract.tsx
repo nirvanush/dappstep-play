@@ -426,9 +426,7 @@ export default function Send() {
   async function signAndSubmit(unsignedTx) {
     setIsSubmittingTx(true);
 
-    // const wallet = await new SignerWallet().fromMnemonics(
-    //   'prevent hair cousin critic embrace okay burger choice pilot rice sure clerk absurd patrol tent'
-    // );
+    // const wallet = await new SignerWallet().fromMnemonics('');
 
     let signedTx;
 
