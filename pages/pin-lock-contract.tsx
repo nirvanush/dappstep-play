@@ -24,6 +24,7 @@ import { get } from '../src/lib/rest';
 import styles from '../styles/Home.module.css';
 import ErgoScriptEditor from './components/ErgoScriptEditor';
 import TransactionPreviewModal from './components/TransactionPreviewModal';
+import { txById } from '../src/lib/explorer';
 
 const swapArrayLocs = function (arr, index1, index2) {
   const temp = arr[index1];

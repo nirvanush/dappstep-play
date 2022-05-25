@@ -34,7 +34,8 @@ import ErgoScriptEditor from './components/ErgoScriptEditor';
 import TransactionPreviewModal from './components/TransactionPreviewModal';
 import SignerWallet from '../src/services/WalletFromMnemonics';
 import { NANO_ERG_IN_ERG } from '../src/services/constants';
-import _ from 'lodash';
+import _, { values } from 'lodash';
+import { type } from 'os';
 
 const swapArrayLocs = function (arr, index1, index2) {
   const temp = arr[index1];
@@ -626,81 +627,162 @@ export default function Send() {
   );
 }
 
-const lockTx = {
-  inputs: ['user unspent boxes'],
-  outputs: [
-    {
-      value: 0.0001,
-      address: '<contract_address>',
-      assets: [{ name: 'Token to rent', tokenId: '123' }],
-      additionalRegisters: {
-        R4: '<owner address>',
-        R5: 3, // price
-        R6: 2, // months period
-      },
-    },
-    { value: 0.0001 }, // fee
-    { value: 1111 }, // change box
-  ],
-};
+class Transaction {
+  constructor(objects: Object[]) {
 
-const rentTx = {
-  inputs: [
-    {
-      value: 0.0001,
-      address: '<contract_address>',
-      assets: [{ name: 'Token to rent', tokenId: '123' }],
-      additionalRegisters: {
-        R4: '<owner address>',
-        R5: 3, // price
-        R6: 2, // months period
-      },
-    },
-    { value: 11111 }, // unspent boxes
-  ],
-  outputs: [
-    {
-      value: 0.0001,
-      address: '<contract_address>',
-      assets: [{ name: 'Token to rent', tokenId: '123' }],
-      additionalRegisters: {
-        R4: '<owner address>',
-        R5: 3, // price
-        R6: 2, // months period
-        R7: '<renter address>',
-        R8: 'unlock time',
-      },
-    },
-    {
-      value: 3 * 2, // price
-      address: '<owner address>',
-    },
-    { value: 0.0001 }, // fee
-    { value: 1111 }, // change box
-  ],
-};
+  }
+}
 
-const releaseTx = {
-  inputs: [
-    {
-      value: 0.0001,
-      address: '<contract_address>',
-      assets: [{ name: 'Token to rent', tokenId: '123' }],
-      additionalRegisters: {
-        R4: '<owner address>',
-        R5: 3, // price
-        R6: 2, // months period
-        R7: '<renter address>', // ????
-        R8: 'unlock time', // ????
+// lock token
+const boxJSON = {};
+
+enum RegisterTypes {
+  Long = 'Long',
+  'Coll[Byte]' = 'Coll[Byte]',
+  Int = 'Int',
+}
+
+
+const toR = async (type: RegisterTypes, value: any) => {
+  switch(type) {
+    case RegisterTypes.Long:
+      return await encodeNum(value.toString());
+    case RegisterTypes.Int:
+      return await encodeNum(value.toString(), true);
+    case RegisterTypes['Coll[Byte]']:
+      const tree = new Address(value).ergoTree;
+
+      return await encodeHex(tree);
+    default:
+      throw new Error('type does not exist');
+  }
+}
+
+const tx = new Transaction([
+  {
+    funds: {
+      ERG: 0.001,
+      tokens: [{ tokenId: '111', amount: '1'} ],
+    },
+    toAddress: 'contract address',
+    additionalRegisters: {
+      R4: await toR(RegisterTypes.Long, 3),
+      R5: await toR(RegisterTypes.Long, 4),
+      R6: await toR(RegisterTypes['Coll[Byte]'], 'address')
+    }
+  }
+])
+
+class ExplorerInputBox {
+  R4: Object;
+  constructor({ box: Object }) {
+    const D = {
+      "boxId": "f55cbdee3916b21e1a71f4cab7c183cda114fb968b6f5d4618ea0e5b7ba675de",
+      "transactionId": "4086f0bb0760e1b921594fd0567a238cb9c86c6c3db243601f6c43bfafdd0a77",
+      "blockId": "607f001652af37bb5e45a8351ad08cfb60f2250f64d5de3cdf9d3e53191a55b9",
+      "value": 200000,
+      "creationHeight": 756648,
+      "ergoTree": "aaa",
+      "assets": [
+        {
+          "tokenId": "0cd8c9f416e5b1ca9f986a7f10a84191dfb85941619e49e53c0dc30ebf83324b",
+          "index": 0,
+          "amount": 1,
+          "name": "COMET",
+          "decimals": 0,
+          "type": "EIP-004"
+        }
+      ],
+      "additionalRegisters": {
+        "R4": {
+          "serializedValue": "0e240008cd03bce97a3de134b1f85afe530caa42b0f8618e7883c4b389bb9f4def5d8245a8c4",
+          "sigmaType": "Coll[SByte]",
+          "renderedValue": "0008cd03bce97a3de134b1f85afe530caa42b0f8618e7883c4b389bb9f4def5d8245a8c4"
+        },
+        "R5": {
+          "serializedValue": "05808ece1c",
+          "sigmaType": "SLong",
+          "renderedValue": "30000000"
+        },
+        "R6": {
+          "serializedValue": "0580a43f",
+          "sigmaType": "SLong",
+          "renderedValue": "518400"
+        }
       },
+      extension: {}
+    }
+
+    const a = _.pick(D, [
+      'additionalRegisters',
+      'value',
+      'ergoTree',
+      'creationHeight',
+      'assets',
+    ])
+  }
+
+  toJSON() {
+    return {}
+  }
+
+  purgeRegisters() {
+    delete this.R4;
+    delete this.R5;
+    delete this.R6;
+    delete this.R7;
+    delete this.R8;
+
+    return this;
+  }
+
+  addRegisters(args: { R4?: string, R5?: string, R6?: string, R7?: string, R8?: string }) {
+    if(args.R4) this.R4 = this.rValue(args.R4);
+
+    return this;
+  }
+
+  rValue(value: any) {
+    return {
+      get: async function(type) {
+        return [value, type];
+      }
+    }
+  }
+}
+
+
+// rent token
+const INPUT_0 = new ExplorerInputBox({ box: boxJSON });
+const OUTPUT_0 = new ExplorerInputBox({ box: boxJSON })
+  .purgeRegisters()
+  .addRegisters({
+    R4: INPUT_0.R4.get('Long') + 3,
+  })
+  .mutate({
+    ergoTree: 'address',
+  });
+
+
+const tx = new Transaction([
+  [INPUT_0, OUTPUT_0],
+  {
+    funds: {
+      ERG: 2,
+      tokens: [],
     },
-  ],
-  outputs: [
-    {
-      value: 0.0001,
-      address: '<owner address>',
-      assets: [{ name: 'Token to rent', tokenId: '123' }],
-      additionalRegisters: {},
-    },
-  ],
-};
+    toAddress: 'user address',
+  },
+]).toJSON()
+
+
+// withdraw token
+const tx = new Transaction([
+  new ContractBox({box: boxJSON, toAddress: 'address' })
+]).toJSON()
+
+
+
+INPUTBOX.R4['Long'].get();
+
+
