@@ -2,6 +2,6 @@
   "transform": {
     "^.+\\.(t|j)sx?$": "ts-jest"
   },
-  "testMatch": ["**/__tests__/**/*.ts?(x)"],
+  "testMatch": ["./tests/**/*.test.ts?(x)"],
   "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json", "node", "wasm"]
 }

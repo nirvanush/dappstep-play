@@ -9,7 +9,7 @@
     "lint": "next lint",
     "test": "jest --config jestconfig.json",
     "test:tdd": "jest --config jestconfig.json --watchAll",
-    "test:chai": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register  'src/__tests__/**/*.test.ts' --watch"
+    "test:chai": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register 'tests/**/*.ts'"
   },
   "dependencies": {
     "@chakra-ui/icons": "^1.1.7",
@@ -21,11 +21,11 @@
     "@coinbarn/ergo-ts": "^0.3.0",
     "@emotion/react": "^11.9.0",
     "@emotion/styled": "^11.8.1",
-    "@ertravi/txio-view-react": "^0.0.21",
+    "@ertravi/txio-view-react": "^0.0.23",
     "@multiformats/blake2": "^1.0.9",
     "@types/superagent": "^4.1.15",
     "@uiw/react-codemirror": "^4.7.0",
-    "ergo-lib-wasm-browser": "^0.15.0",
+    "ergo-lib-wasm-nodejs": "^0.16.1",
     "eslint-plugin-jest": "^26.1.5",
     "framer-motion": "^6.3.1",
     "jest": "^28.0.3",
@@ -60,7 +60,7 @@
     "prettier-eslint": "^15.0.0",
     "prettier-eslint-cli": "^6.0.1",
     "ts-jest": "^28.0.1",
-    "ts-node": "^10.7.0",
+    "ts-node": "^10.8.0",
     "typescript": "^4.6.3"
   }
 }

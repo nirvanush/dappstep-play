@@ -15,18 +15,13 @@ import { useEffect, useState } from 'react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 import { Address, minBoxValue } from '@coinbarn/ergo-ts';
 import {
-  sendToken,
   loadTokensFromWallet,
-  currentHeight,
 } from '../src/services/GenerateSendFundsTx';
 import { sendFunds } from '../src/services/Transaction';
 import { checkTx, p2sNode } from '../src/services/helpers';
 import {
   encodeHex,
-  encodeLongTuple,
   encodeNum,
-  encodeByteArray,
-  decodeNum,
 } from '../src/lib/serializer';
 import { get } from '../src/lib/rest';
 import styles from '../styles/Home.module.css';
@@ -34,8 +29,10 @@ import ErgoScriptEditor from './components/ErgoScriptEditor';
 import TransactionPreviewModal from './components/TransactionPreviewModal';
 import SignerWallet from '../src/services/WalletFromMnemonics';
 import { NANO_ERG_IN_ERG } from '../src/services/constants';
-import _, { replace, values } from 'lodash';
-import { type } from 'os';
+import _ from 'lodash';
+
+import Transaction from '../src/ergoscript.js/Transaction';
+import { SigmaType } from '../src/ergoscript.js/Box';
 
 const swapArrayLocs = function (arr, index1, index2) {
   const temp = arr[index1];
@@ -228,6 +225,20 @@ export default function Send() {
     const period = 1000 * 60 * 60 * 24 * rentDays;
 
     try {
+      const tx = new Transaction([{
+        funds: {
+          ERG: minBoxValue * 2,
+          tokens: [{ tokenId: selectedToken.tokenId, amount: 1 }],
+        },
+        toAddress: resp.address,
+        changeAddress: changeAddress,
+        additionalRegisters: {
+          R4: { value: tree, type: SigmaType.CollByte }, // owner address
+          R5: { value: price, type: SigmaType.Long },
+          R6: { value: period, type: SigmaType.Long },
+        },
+      }])
+
       unsignedTx = await sendFunds({
         funds: {
           ERG: minBoxValue * 2,
@@ -627,15 +638,6 @@ export default function Send() {
   );
 }
 
-class Transaction {
-  constructor(objects: Object[]) {
-
-  }
-}
-
-// lock token
-const boxJSON = {};
-
 enum RegisterTypes {
   Long = 'Long',
   'Coll[Byte]' = 'Coll[Byte]',
@@ -643,344 +645,25 @@ enum RegisterTypes {
 }
 
 
-const toR = async (type: RegisterTypes, value: any) => {
+const toR = (type: RegisterTypes, value: any) => {
   switch(type) {
     case RegisterTypes.Long:
-      return await encodeNum(value.toString());
+      return encodeNum(value.toString());
     case RegisterTypes.Int:
-      return await encodeNum(value.toString(), true);
+      return encodeNum(value.toString(), true);
     case RegisterTypes['Coll[Byte]']:
       const tree = new Address(value).ergoTree;
 
-      return await encodeHex(tree);
+      return encodeHex(tree);
     default:
       throw new Error('type does not exist');
   }
 }
 
-const tx = new Transaction([
-  {
-    funds: {
-      ERG: 0.001,
-      tokens: [{ tokenId: '111', amount: '1'} ],
-    },
-    toAddress: 'contract address',
-    additionalRegisters: {
-      R4: await toR(RegisterTypes.Long, 3),
-      R5: await toR(RegisterTypes.Long, 4),
-      R6: await toR(RegisterTypes['Coll[Byte]'], 'address')
-    }
-  }
-])
+///////////////////////////////
+//////////// API //////////////
+///////////////////////////////
 
-class ExplorerInputBox {
-  R4: Object;
-  constructor({ box: Object }) {
-    const D = {
-      "boxId": "f55cbdee3916b21e1a71f4cab7c183cda114fb968b6f5d4618ea0e5b7ba675de",
-      "transactionId": "4086f0bb0760e1b921594fd0567a238cb9c86c6c3db243601f6c43bfafdd0a77",
-      "blockId": "607f001652af37bb5e45a8351ad08cfb60f2250f64d5de3cdf9d3e53191a55b9",
-      "value": 200000,
-      "creationHeight": 756648,
-      "ergoTree": "aaa",
-      "assets": [
-        {
-          "tokenId": "0cd8c9f416e5b1ca9f986a7f10a84191dfb85941619e49e53c0dc30ebf83324b",
-          "index": 0,
-          "amount": 1,
-          "name": "COMET",
-          "decimals": 0,
-          "type": "EIP-004"
-        }
-      ],
-      "additionalRegisters": {
-        "R4": {
-          "serializedValue": "0e240008cd03bce97a3de134b1f85afe530caa42b0f8618e7883c4b389bb9f4def5d8245a8c4",
-          "sigmaType": "Coll[SByte]",
-          "renderedValue": "0008cd03bce97a3de134b1f85afe530caa42b0f8618e7883c4b389bb9f4def5d8245a8c4"
-        },
-        "R5": {
-          "serializedValue": "05808ece1c",
-          "sigmaType": "SLong",
-          "renderedValue": "30000000"
-        },
-        "R6": {
-          "serializedValue": "0580a43f",
-          "sigmaType": "SLong",
-          "renderedValue": "518400"
-        }
-      },
-      extension: {}
-    }
-
-    const a = _.pick(D, [
-      'additionalRegisters',
-      'value',
-      'ergoTree',
-      'creationHeight',
-      'assets',
-    ])
-  }
-
-  toJSON() {
-    return {}
-  }
-
-  purgeRegisters() {
-    delete this.R4;
-    delete this.R5;
-    delete this.R6;
-    delete this.R7;
-    delete this.R8;
-    return this;
-  }
-
-  addRegisters(args: { R4?: string, R5?: string, R6?: string, R7?: string, R8?: string }) {
-    if(args.R4) this.R4 = this.rValue(args.R4);
-
-    return this;
-  }
-
-  rValue(value: any) {
-    return {
-      get: async function(type) {
-
-        // todo decoding
-        return [value, type];
-      }
-    }
-  }
-}
-
-
-// rent token
-const INPUT_0 = new ExplorerInputBox({ box: boxJSON });
-const OUTPUT_0 = new ExplorerInputBox({ box: boxJSON })
-  .purgeRegisters()
-  .addRegisters({
-    R4: INPUT_0.R4.get('Long') + 3,
-  })
-  .mutate({
-    ergoTree: 'address',
-  });
-
-
-const tx = new Transaction([
-  [INPUT_0, OUTPUT_0],
-  {
-    funds: {
-      ERG: 2,
-      tokens: [],
-    },
-    toAddress: 'user address',
-  },
-]).toJSON()
-
-
-// withdraw token
-const tx = new Transaction([
-  new ContractBox({box: boxJSON, toAddress: 'address' })
-]).toJSON()
-
-
-
-INPUTBOX.R4['Long'].get();
-
-
-
-const tx = {
-  "inputs": [
-      {
-          "boxId": "f55cbdee3916b21e1a71f4cab7c183cda114fb968b6f5d4618ea0e5b7ba675de",
-          "transactionId": "4086f0bb0760e1b921594fd0567a238cb9c86c6c3db243601f6c43bfafdd0a77",
-          "blockId": "607f001652af37bb5e45a8351ad08cfb60f2250f64d5de3cdf9d3e53191a55b9",
-          "value": 200000,
-          "index": 0,
-          "globalIndex": 17089796,
-          "creationHeight": 756648,
-          "settlementHeight": 756650,
-          "ergoTree": "100604000400040204040580bab7030580bab703d812d601b2a4730000d602b2a5730100d603c67202070ed604e67203d605c672020805d606e67205d607e4c67201040ed60893e4c67202040e7207d609b2a5730200d60ac2b2a599b1a5730300d60bdb6903db6503fed60ce4c672010605d60d9a720b720cd60ee4c672010505d60f9683070193c272097207ed720493e47203720aeded720691e4720599720d7304ed72068fe472059a720d730593c17209720e720893e4c672020505720e93e4c672020605720cd61093720a7207d611c672010805d612ede672118fe47211720b95efe6c67201070e957210d1968303017208ef7204ef7206d1720f957210d17212d1eded93e47203720a720fef7212",
-          "address": "kQnHML2GMSx6qvzVPfEaUCZqmgQT5mWDEyf6RXEf31dtPBY2y2TCyVATtinrftSwBc1uhibccZAJ4nqi8P7vPeCWLgzDuHU2CtrZurR8DXik1snmCRQ7DG1LqoeZ434dhbhErCX8XXxjP91TphCYZo4nSuGdssZEehiBe85BYfo2NSVpecqQLyaFd8HQexcc18BaG5XJ81L12ibk3PiXa3W7oM4PPVqXM6M5RnGExZJSWbG7ikTRVnaKW7QN5N8qg8QtB9gMnpJ8DZBSGkBhuHRu1B7r4E9N3pPE8FdWywHjoGeZjGf77Xp5GYtRyo8tQu6BnFSc6HAHXdFoNxJNREBHQd6tHhfRT8J8dsJ16UFSc4ePK2DzEWk6H6UZ",
-          "assets": [
-              {
-                  "tokenId": "0cd8c9f416e5b1ca9f986a7f10a84191dfb85941619e49e53c0dc30ebf83324b",
-                  "index": 0,
-                  "amount": 1,
-                  "name": "COMET",
-                  "decimals": 0,
-                  "type": "EIP-004"
-              }
-          ],
-          "additionalRegisters": {
-              "R4": "0e240008cd03bce97a3de134b1f85afe530caa42b0f8618e7883c4b389bb9f4def5d8245a8c4",
-              "R5": "05808ece1c",
-              "R6": "0580a43f"
-          },
-          "spentTransactionId": null,
-          "mainChain": true,
-          "extension": {}
-      },
-      {
-          "boxId": "c561c85c30d4076570ec2c5053e7a1df60f878013da6f36eb2aafb5e5817413d",
-          "transactionId": "4086f0bb0760e1b921594fd0567a238cb9c86c6c3db243601f6c43bfafdd0a77",
-          "index": 1,
-          "ergoTree": "0008cd03bce97a3de134b1f85afe530caa42b0f8618e7883c4b389bb9f4def5d8245a8c4",
-          "creationHeight": 756648,
-          "value": "18000000",
-          "assets": [],
-          "additionalRegisters": {},
-          "confirmed": true,
-          "extension": {}
-      },
-      {
-          "boxId": "484c5a0bf49f5810009aa7e93b870ff3bb2f297084c49141d79d4acf306ca427",
-          "transactionId": "224b80ace03efe32a5340af45a231f66df86a2e605d372008f076e7e9b693aff",
-          "index": 1,
-          "ergoTree": "0008cd03bce97a3de134b1f85afe530caa42b0f8618e7883c4b389bb9f4def5d8245a8c4",
-          "creationHeight": 756631,
-          "value": "83313684835",
-          "assets": [
-              {
-                  "tokenId": "0cd8c9f416e5b1ca9f986a7f10a84191dfb85941619e49e53c0dc30ebf83324b",
-                  "amount": "6407"
-              },
-              {
-                  "tokenId": "0b7c3cd3145209c6f455e2a0b890195eafcde934e09ca3d54d7972d1f1ce3c44",
-                  "amount": "11"
-              },
-              {
-                  "tokenId": "0fb7067499b8cbc8ac343d694ab817a3c750b641cf4e9aee73cceca2a7d7a770",
-                  "amount": "1"
-              },
-              {
-                  "tokenId": "5a34d53ca483924b9a6aa0c771f11888881b516a8d1a9cdc535d063fe26d065e",
-                  "amount": "500000000"
-              }
-          ],
-          "additionalRegisters": {},
-          "confirmed": true,
-          "extension": {}
-      }
-  ],
-  "outputs": [
-      {
-          "additionalRegisters": {
-              "R4": "0e240008cd03bce97a3de134b1f85afe530caa42b0f8618e7883c4b389bb9f4def5d8245a8c4",
-              "R5": "05808ece1c",
-              "R6": "0580a43f",
-              "R7": "0e240008cd03bce97a3de134b1f85afe530caa42b0f8618e7883c4b389bb9f4def5d8245a8c4",
-              "R8": "05b6e3adc79f60"
-          },
-          "value": 200000,
-          "ergoTree": "100604000400040204040580bab7030580bab703d812d601b2a4730000d602b2a5730100d603c67202070ed604e67203d605c672020805d606e67205d607e4c67201040ed60893e4c67202040e7207d609b2a5730200d60ac2b2a599b1a5730300d60bdb6903db6503fed60ce4c672010605d60d9a720b720cd60ee4c672010505d60f9683070193c272097207ed720493e47203720aeded720691e4720599720d7304ed72068fe472059a720d730593c17209720e720893e4c672020505720e93e4c672020605720cd61093720a7207d611c672010805d612ede672118fe47211720b95efe6c67201070e957210d1968303017208ef7204ef7206d1720f957210d17212d1eded93e47203720a720fef7212",
-          "creationHeight": 756648,
-          "assets": [
-              {
-                  "tokenId": "0cd8c9f416e5b1ca9f986a7f10a84191dfb85941619e49e53c0dc30ebf83324b",
-                  "index": 0,
-                  "amount": 1,
-                  "name": "COMET",
-                  "decimals": 0,
-                  "type": "EIP-004"
-              }
-          ]
-      },
-      {
-          "value": "30000000",
-          "ergoTree": "0008cd03bce97a3de134b1f85afe530caa42b0f8618e7883c4b389bb9f4def5d8245a8c4",
-          "assets": [],
-          "additionalRegisters": {},
-          "creationHeight": 757506
-      },
-      {
-          "value": "83300684835",
-          "ergoTree": "0008cd03bce97a3de134b1f85afe530caa42b0f8618e7883c4b389bb9f4def5d8245a8c4",
-          "assets": [
-              {
-                  "tokenId": "0cd8c9f416e5b1ca9f986a7f10a84191dfb85941619e49e53c0dc30ebf83324b",
-                  "amount": "6407"
-              },
-              {
-                  "tokenId": "0b7c3cd3145209c6f455e2a0b890195eafcde934e09ca3d54d7972d1f1ce3c44",
-                  "amount": "11"
-              },
-              {
-                  "tokenId": "0fb7067499b8cbc8ac343d694ab817a3c750b641cf4e9aee73cceca2a7d7a770",
-                  "amount": "1"
-              },
-              {
-                  "tokenId": "5a34d53ca483924b9a6aa0c771f11888881b516a8d1a9cdc535d063fe26d065e",
-                  "amount": "500000000"
-              }
-          ],
-          "additionalRegisters": {},
-          "creationHeight": 757506
-      },
-      {
-          "value": "1000000",
-          "creationHeight": 757506,
-          "ergoTree": "1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304",
-          "assets": [],
-          "additionalRegisters": {}
-      }
-  ],
-  "dataInputs": [],
-  "fee": 1000000
-}
-
-async function buildScriptScope(tx) {
-  const Long = 'Long'
-  const INPUTS = [
-    { R5: { Long: { get: tx.inputs[0].additionalRegisters.R5 }}},
-    { R6: { Long: { get: tx.inputs[0].additionalRegisters.R6 }}}
-  ];
-
-  const OUTPUTS = [
-    { R5: { Long: { get: tx.outputs[0].additionalRegisters.R5 }}},
-    { R6: { Long: { get: tx.outputs[0].additionalRegisters.R6 }}}
-  ];
-
-  function sigmaProp(value) {
-    return !!value;
-  }
-
-  function Coll() {
-    return Array.from(arguments);
-  }
-
-  function allOf(arr) {
-    return arr.every(element => element === true);
-  }
-
-  return {
-    execute: (script) => {
-      const resp = eval(replacer(script));
-      console.log(resp)
-      return resp;
-    }
-  }
-}
-
-
-const script = `
-  val isRentalPeriodSame = OUTPUTS(0).R6[Long].get == INPUTS(0).R6[Long].get
-  val isAmountOk = OUTPUTS(1).value == INPUTS(0).R5[Long].get
-  debugger
-  sigmaProp(allOf(Call(
-    isRentalPeriodSame,
-    isAmountOk
-  )))
-`;
-
-(await buildScriptScope(tx)).execute(script)
-
-
-function replacer(str) {
-  const replaced = str
-    .replaceAll('(0)', '[0]')
-    .replaceAll('(1)', '[1]')
-    .replaceAll('val', 'var')
-    console.log(replaced);
-
-    return replaced;
-}
+///////////////////////////////
+/////////// END API ///////////
+///////////////////////////////

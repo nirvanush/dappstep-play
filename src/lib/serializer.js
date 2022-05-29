@@ -6,7 +6,7 @@ import { supportedCurrencies } from './consts';
 import { getEncodedBox } from './assembler';
 import { getForKey } from './helpers';
 
-let ergolib = import('ergo-lib-wasm-browser');
+let ergolib = require('ergo-lib-wasm-nodejs');
 
 const floatRe = new RegExp('^([0-9]*[.])?[0-9]*$');
 const naturalRe = new RegExp('^[0-9]+$');
@@ -14,38 +14,38 @@ const naturalRe = new RegExp('^[0-9]+$');
 export async function encodeLongTuple(a, b) {
   if (typeof a !== 'string') a = a.toString();
   if (typeof b !== 'string') b = b.toString();
-  return (await ergolib).Constant.from_i64_str_array([a, b]).encode_to_base16();
+  return ergolib.Constant.from_i64_str_array([a, b]).encode_to_base16();
 }
 
 export async function colTuple(a, b) {
-  return (await ergolib).Constant.from_tuple_coll_bytes(
+  return ergolib.Constant.from_tuple_coll_bytes(
     Buffer.from(a, 'hex'),
     Buffer.from(b, 'hex'),
   ).encode_to_base16();
 }
 
 export async function encodeByteArray(reg) {
-  return (await ergolib).Constant.from_byte_array(reg).encode_to_base16();
+  return ergolib.Constant.from_byte_array(reg).encode_to_base16();
 }
 
 export async function decodeLongTuple(val) {
-  return (await ergolib).Constant.decode_from_base16(val)
+  return ergolib.Constant.decode_from_base16(val)
     .to_i64_str_array()
     .map((cur) => parseInt(cur));
 }
 
-export async function encodeNum(n, isInt = false) {
-  if (isInt) return (await ergolib).Constant.from_i32(n).encode_to_base16();
-  else return (await ergolib).Constant.from_i64((await ergolib).I64.from_str(n)).encode_to_base16();
+export function encodeNum(n, isInt = false) {
+  if (isInt) return ergolib.Constant.from_i32(n).encode_to_base16();
+  else return ergolib.Constant.from_i64(ergolib.I64.from_str(n)).encode_to_base16();
 }
 
 export async function decodeNum(n, isInt = false) {
-  if (isInt) return (await ergolib).Constant.decode_from_base16(n).to_i32();
-  else return (await ergolib).Constant.decode_from_base16(n).to_i64().to_str();
+  if (isInt) return ergolib.Constant.decode_from_base16(n).to_i32();
+  else return ergolib.Constant.decode_from_base16(n).to_i64().to_str();
 }
 
-export async function encodeHex(reg) {
-  return (await ergolib).Constant.from_byte_array(Buffer.from(reg, 'hex')).encode_to_base16();
+export function encodeHex(reg) {
+  return ergolib.Constant.from_byte_array(Buffer.from(reg, 'hex')).encode_to_base16();
 }
 
 function toHexString(byteArray) {
@@ -55,17 +55,17 @@ function toHexString(byteArray) {
 }
 
 export async function decodeString(encoded) {
-  return toHexString((await ergolib).Constant.decode_from_base16(encoded).to_byte_array());
+  return toHexString(ergolib.Constant.decode_from_base16(encoded).to_byte_array());
 }
 
 async function decodeColTuple(str) {
-  const two = (await ergolib).Constant.decode_from_base16(str).to_tuple_coll_bytes();
+  const two = ergolib.Constant.decode_from_base16(str).to_tuple_coll_bytes();
   const decoder = new TextDecoder();
   return [decoder.decode(two[0]), decoder.decode(two[1])];
 }
 
 async function decodeStr(str) {
-  return new TextDecoder().decode((await ergolib).Constant.decode_from_base16(str).to_byte_array());
+  return new TextDecoder().decode(ergolib.Constant.decode_from_base16(str).to_byte_array());
 }
 
 function resolveIpfs(url, isVideo = false) {
@@ -268,7 +268,7 @@ export function isNatural(num) {
 }
 
 export async function getEncodedBoxSer(box) {
-  const bytes = (await ergolib).ErgoBox.from_json(JSON.stringify(box)).sigma_serialize_bytes();
+  const bytes = ergolib.ErgoBox.from_json(JSON.stringify(box)).sigma_serialize_bytes();
   return await getEncodedBox(Buffer.from(bytes).toString('hex').toUpperCase());
 }
 

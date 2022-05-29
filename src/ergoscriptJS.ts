@@ -1,4 +1,15 @@
-export default async function buildScriptScope(tx) {
+type Box = {
+  inputs: {
+    value: string,
+    additionalRegisters: { R5: string, R6: string }
+  }[],
+  outputs: {
+    value: string,
+    additionalRegisters: { R5: string, R6: string }
+  }[]
+}
+
+async function buildScriptScope(tx: Box) {
   const Long = 'Long'
   const INPUTS = [
     { value: JSON.parse(tx.inputs[0].value), R5: { Long: { get: tx.inputs[0].additionalRegisters.R5 }}, R6: { Long: { get: tx.inputs[0].additionalRegisters.R6 }}},
@@ -10,7 +21,7 @@ export default async function buildScriptScope(tx) {
     { value: JSON.parse(tx.outputs[1].value), R5: { Long: { get: tx.outputs[1].additionalRegisters.R5 }}, R6: { Long: { get: tx.outputs[1].additionalRegisters.R6 }}}
   ];
 
-  function sigmaProp(value) {
+  function sigmaProp(value: any) {
     return !!value;
   }
 
@@ -18,12 +29,12 @@ export default async function buildScriptScope(tx) {
     return Array.from(arguments);
   }
 
-  function allOf(arr) {
-    return arr.every(element => element === true);
+  function allOf(arr: boolean[]) {
+    return arr.every((element: boolean) => element === true);
   }
 
   return {
-    execute: (script) => {
+    execute: (script: string) => {
       const resp = eval(replacer(script));
       console.log(resp)
       return resp;
@@ -31,7 +42,8 @@ export default async function buildScriptScope(tx) {
   }
 }
 
-function replacer(str) {
+
+function replacer(str: string) {
   const replaced = str
     .replaceAll('(0)', '[0]')
     .replaceAll('(1)', '[1]')
@@ -39,3 +51,7 @@ function replacer(str) {
 
     return replaced;
 }
+
+
+// export buildScriptScope;
+export {}
