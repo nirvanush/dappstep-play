@@ -16,7 +16,6 @@ import { ChevronDownIcon } from '@chakra-ui/icons';
 import { Address, minBoxValue } from '@coinbarn/ergo-ts';
 import { loadTokensFromWallet } from '../src/services/GenerateSendFundsTx';
 import { checkTx, p2sNode } from '../src/services/helpers';
-import { encodeHex, encodeNum } from '../src/lib/serializer';
 import { get } from '../src/lib/rest';
 import styles from '../styles/Home.module.css';
 import ErgoScriptEditor from './components/ErgoScriptEditor';
@@ -25,8 +24,7 @@ import SignerWallet from '../src/services/WalletFromMnemonics';
 import { NANO_ERG_IN_ERG } from '../src/services/constants';
 import _ from 'lodash';
 import Transaction from '../src/ergoscript.js/Transaction';
-import { Box as eUTXOBox, ExplorerBox } from '../src/ergoscript.js/Box';
-import { SigmaType } from '../src/ergoscript.js/Box';
+import { Box as eUTXOBox, ExplorerBox, SigmaType } from '../src/ergoscript.js/Box';
 
 const { Long, Int, CollByte } = SigmaType;
 
@@ -36,18 +34,6 @@ const swapArrayLocs = function (arr, index1, index2) {
   arr[index1] = arr[index2];
   arr[index2] = temp;
 };
-
-// rent
-//[contractToken, unspentBoxes]
-//[updatedContractBox, funds, change, fee]
-
-// update
-//[contractToken, unspentBoxes]
-//[updatedContractBox, change, fee]
-
-// release
-//[contractToken, unspentBoxes]
-//[updatedContractBox, change, fee]
 
 // R4 - Owner address
 // R5 - Rent price for the whole period
@@ -227,7 +213,7 @@ export default function Send() {
             ERG: minBoxValue * 2,
             tokens: [{ tokenId: selectedToken.tokenId, amount: 1 }],
           },
-          toAddress: resp.address,
+          toAddress: resp.address, // contract address
           changeAddress: changeAddress,
           additionalRegisters: {
             R4: { value: tree, type: CollByte }, // owner address

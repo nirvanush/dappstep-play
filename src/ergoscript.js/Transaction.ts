@@ -1,7 +1,8 @@
 import { Asset, Box, RegisterInput } from './Box';
 import { currentHeight, loadTokensFromWallet } from './helpers';
 import { MIN_FEE, FEE_ADDRESS } from './constants';
-import { Address } from 'ergo-lib-wasm-browser';
+import { wasmModule } from "./ergolib";
+wasmModule.loadAsync();
 
 type Funds = {
   ERG: number;
@@ -123,7 +124,7 @@ export default class Transaction {
   
     const fundBox = new Box({
       value: funds.ERG,
-      ergoTree: Address.from_mainnet_str(toAddress).to_ergo_tree().to_base16_bytes(),
+      ergoTree: wasmModule.SigmaRust.Address.from_mainnet_str(toAddress).to_ergo_tree().to_base16_bytes(),
       assets: funds.tokens.map((t) => ({ tokenId: t.tokenId, amount: t.amount })),
       additionalRegisters: {},
       creationHeight,
@@ -139,7 +140,7 @@ export default class Transaction {
   
     const changeBox = new Box({
       value: (-have['ERG']),
-      ergoTree: Address.from_mainnet_str(args.changeAddress)
+      ergoTree: wasmModule.SigmaRust.Address.from_mainnet_str(args.changeAddress)
         .to_ergo_tree()
         .to_base16_bytes(),
       assets: Object.keys(have)

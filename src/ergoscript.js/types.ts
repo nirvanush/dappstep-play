@@ -1,33 +1,31 @@
-import { ExplorerBox } from '../ergoscript.js/Box';
+declare global {
+  interface Ergo {
+    get_utxos: (a: string, b: string) => Promise<UtxoBox[]>;
+    get_change_address: () => Promise<string>;
+    get_used_addresses: () => Promise<string[]>;
+    get_unused_addresses: () => Promise<string[]>;
+    sign_tx: (tx: string) => Promise<string>;
+    submit_tx: (tx: string) => Promise<string>;
+  }
 
-// declare global {
-//   interface Ergo {
-//     get_utxos: (a: string, b: string) => Promise<UtxoBox[]>;
-//     get_change_address: () => Promise<string>;
-//     get_used_addresses: () => Promise<string[]>;
-//     get_unused_addresses: () => Promise<string[]>;
-//     sign_tx: (tx: string) => Promise<string>;
-//     submit_tx: (tx: string) => Promise<string>;
-//   }
+  interface ergoConnector {
+    nautilus: {
+      connect: () => Promise<null>;
+    };
+  }
 
-//   interface ergoConnector {
-//     nautilus: {
-//       connect: () => Promise<null>;
-//     };
-//   }
+  const ergo: Ergo;
+  const ergoConnector: ergoConnector;
 
-//   const ergo: Ergo;
-//   const ergoConnector: ergoConnector;
+  const ergo_request_read_access: () => Promise<null>;
+  const ergo_check_read_access: () => Promise<null>;
 
-//   const ergo_request_read_access: () => Promise<null>;
-//   const ergo_check_read_access: () => Promise<null>;
-
-//   interface Window {
-//     ergo: Ergo;
-//     ergo_request_read_access: () => Promise<null>;
-//     ergo_check_read_access: () => Promise<null>;
-//   }
-// }
+  interface Window {
+    ergo: Ergo;
+    ergo_request_read_access: () => Promise<null>;
+    ergo_check_read_access: () => Promise<null>;
+  }
+}
 
 export type OptionalBlock = {
   height: number;

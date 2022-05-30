@@ -7,9 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest --config jestconfig.json",
-    "test:tdd": "jest --config jestconfig.json --watchAll",
-    "test:chai": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register 'tests/**/*.ts'"
+    "pretty": "prettier --write pages",
+    "test:jest": "jest --config jestconfig.json",
+    "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register 'tests/**/*.ts'"
   },
   "dependencies": {
     "@chakra-ui/icons": "^1.1.7",
@@ -49,6 +49,7 @@
     "@typescript-eslint/eslint-plugin": "5.11.0",
     "@typescript-eslint/parser": "5.11.0",
     "chai": "^4.3.6",
+    "ergo-lib-wasm-nodejs": "^0.16.1",
     "eslint-config-prettier": "8.3.0",
     "eslint-import-resolver-typescript": "2.5.0",
     "eslint-plugin-import": "2.25.4",
