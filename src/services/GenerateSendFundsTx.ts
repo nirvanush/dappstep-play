@@ -1,5 +1,5 @@
 import { OptionalBlock, AddressItem, Balance, Asset, UtxoBox } from './types';
-import { Address } from 'ergo-lib-wasm-browser';
+const { Address } = require('ergo-lib-wasm-browser');
 
 // declare global {
 //   const ergo: {

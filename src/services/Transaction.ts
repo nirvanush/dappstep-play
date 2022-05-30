@@ -1,7 +1,8 @@
 import { Balance, Asset, UtxoBox, dataInputsType } from './types';
-import { Address } from 'ergo-lib-wasm-browser';
 import { currentHeight, loadTokensFromWallet, getBalance } from './helpers';
 import { MIN_FEE, FEE_ADDRESS } from './constants';
+
+const { Address } = require('ergo-lib-wasm-browser');
 
 export type Funds = {
   ERG: number;
@@ -31,7 +32,6 @@ export async function sendFunds(args: { funds: Funds; toAddress: string; additio
   const totalBalance = await loadTokensFromWallet();
 
   if (
-    // todo: check that there is enough ergo
     keys
       .filter((key) => key !== 'ERG')
       .filter((key) => !Object.keys(totalBalance).includes(key) || totalBalance[key].amount < have[key]).length > 0

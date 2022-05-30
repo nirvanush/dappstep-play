@@ -1,4 +1,4 @@
-import {
+const {
   Address,
   BlockHeaders,
   BoxId,
@@ -24,13 +24,13 @@ import {
   UnsignedInputs,
   UnsignedTransaction,
   Wallet,
-} from 'ergo-lib-wasm-browser';
+} = require('ergo-lib-wasm-browser');
 import request from 'superagent';
 import JSONBig from 'json-bigint';
 import { UnsignedTx } from './connector_types';
 
 export default class SignerWallet {
-  private wallet!: Wallet;
+  private wallet!: typeof Wallet;
   private blockContext!: Object[];
 
   constructor() {}
@@ -53,7 +53,7 @@ export default class SignerWallet {
     return signed.to_json();
   }
 
-  private _sign(unsigned: UnsignedTransaction, unspentBoxes: ErgoBoxes, dataInputBoxes: ErgoBoxes) {
+  private _sign(unsigned: typeof UnsignedTransaction, unspentBoxes: typeof ErgoBoxes, dataInputBoxes: typeof ErgoBoxes) {
     const blockHeaders = BlockHeaders.from_json(this.blockContext);
     const preHeader = PreHeader.from_block_header(blockHeaders.get(0));
     const signContext = new ErgoStateContext(preHeader, blockHeaders);

@@ -6,7 +6,7 @@ import { colTuple, encodeByteArray, encodeHex, encodeNum } from './serializer';
 import { Serializer } from '@coinbarn/ergo-ts/dist/serializer';
 import { follow } from './assembler';
 
-let ergolib = import('ergo-lib-wasm-browser');
+let ergolib = require('ergo-lib-wasm-browser');
 
 function yoroiDisconnect() {
   showMsg('Disconnected from Yoroi wallet', true);

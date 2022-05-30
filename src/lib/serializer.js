@@ -6,7 +6,7 @@ import { supportedCurrencies } from './consts';
 import { getEncodedBox } from './assembler';
 import { getForKey } from './helpers';
 
-let ergolib = import('ergo-lib-wasm-browser');
+let ergolib = require('ergo-lib-wasm-browser');
 
 const floatRe = new RegExp('^([0-9]*[.])?[0-9]*$');
 const naturalRe = new RegExp('^[0-9]+$');
