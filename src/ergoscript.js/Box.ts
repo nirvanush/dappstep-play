@@ -1,5 +1,6 @@
-import { encodeNum, encodeHex } from '../lib/serializer';
+import { encodeNum, encodeHex } from './serializer';
 import _ from 'lodash';
+import { Address } from '@coinbarn/ergo-ts';
 
 export enum SigmaType {
   Long = 'Long',
@@ -48,22 +49,22 @@ export type ExplorerBox = {
 }
 
 export type TypeGetters = {
-  get: string | number | undefined;
+  get: string;
   isDefined: boolean;
 }
 
 export class Register {
   Long: TypeGetters;
-  CollByte: TypeGetters;
+  ['Coll[Byte]']: TypeGetters;
   register?: SerializedRegister;
 
   constructor(register?: SerializedRegister) {
     this.register = _.cloneDeep(register);
     this.Long = this._buildRegister();
-    this.CollByte = this._buildRegister();
+    this['Coll[Byte]'] = this._buildRegister();
   }
 
-  set(value: any, type: SigmaType) {
+  async set(value: any, type: SigmaType) {
     this.register = this.register || { renderedValue: '', sigmaType: '', serializedValue: '' };
     this.register.renderedValue = value;
     this.register.sigmaType = `S${type}`;
@@ -79,7 +80,7 @@ export class Register {
     }
 
     this.Long = this._buildRegister();
-    this.CollByte = this._buildRegister();
+    this['Coll[Byte]'] = this._buildRegister();
 
     return this;
   }
@@ -131,12 +132,18 @@ export class Box {
     if (this.R9.register) additionalRegisters.R9 = this.R9.register.serializedValue;
 
     return {
+      ...this.boxJson,
       additionalRegisters,
       value: this.value.toString(),
-      ergoTree: this.boxJson.ergoTree,
-      creationHeight: this.boxJson.creationHeight,
-      assets: this.boxJson.assets
+      extension: {}
     }
+  }
+
+  sendTo(address: string) {
+    const newInstance = new Box(this._serialize());
+    newInstance.boxJson.ergoTree = new Address(address).ergoTree;
+
+    return newInstance;
   }
 
   setRegisters(args: {

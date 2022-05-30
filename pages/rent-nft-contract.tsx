@@ -14,15 +14,9 @@ import {
 import { useEffect, useState } from 'react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 import { Address, minBoxValue } from '@coinbarn/ergo-ts';
-import {
-  loadTokensFromWallet,
-} from '../src/services/GenerateSendFundsTx';
-import { sendFunds } from '../src/services/Transaction';
+import { loadTokensFromWallet } from '../src/services/GenerateSendFundsTx';
 import { checkTx, p2sNode } from '../src/services/helpers';
-import {
-  encodeHex,
-  encodeNum,
-} from '../src/lib/serializer';
+import { encodeHex, encodeNum } from '../src/lib/serializer';
 import { get } from '../src/lib/rest';
 import styles from '../styles/Home.module.css';
 import ErgoScriptEditor from './components/ErgoScriptEditor';
@@ -30,9 +24,11 @@ import TransactionPreviewModal from './components/TransactionPreviewModal';
 import SignerWallet from '../src/services/WalletFromMnemonics';
 import { NANO_ERG_IN_ERG } from '../src/services/constants';
 import _ from 'lodash';
-
 import Transaction from '../src/ergoscript.js/Transaction';
+import { Box as eUTXOBox, ExplorerBox } from '../src/ergoscript.js/Box';
 import { SigmaType } from '../src/ergoscript.js/Box';
+
+const { Long, Int, CollByte } = SigmaType;
 
 const swapArrayLocs = function (arr, index1, index2) {
   const temp = arr[index1];
@@ -204,7 +200,7 @@ export default function Send() {
 
   async function handleLockAsset() {
     setIsGeneratingLockTx(true);
-    // connect to ergo wallet
+
     let resp;
 
     try {
@@ -225,32 +221,23 @@ export default function Send() {
     const period = 1000 * 60 * 60 * 24 * rentDays;
 
     try {
-      const tx = new Transaction([{
-        funds: {
-          ERG: minBoxValue * 2,
-          tokens: [{ tokenId: selectedToken.tokenId, amount: 1 }],
+      const tx = new Transaction([
+        {
+          funds: {
+            ERG: minBoxValue * 2,
+            tokens: [{ tokenId: selectedToken.tokenId, amount: 1 }],
+          },
+          toAddress: resp.address,
+          changeAddress: changeAddress,
+          additionalRegisters: {
+            R4: { value: tree, type: CollByte }, // owner address
+            R5: { value: price, type: Long },
+            R6: { value: period, type: Long },
+          },
         },
-        toAddress: resp.address,
-        changeAddress: changeAddress,
-        additionalRegisters: {
-          R4: { value: tree, type: SigmaType.CollByte }, // owner address
-          R5: { value: price, type: SigmaType.Long },
-          R6: { value: period, type: SigmaType.Long },
-        },
-      }])
+      ]);
 
-      unsignedTx = await sendFunds({
-        funds: {
-          ERG: minBoxValue * 2,
-          tokens: [{ tokenId: selectedToken.tokenId, amount: 1 }],
-        },
-        toAddress: resp.address,
-        additionalRegisters: {
-          R4: await encodeHex(tree), // owner address
-          R5: await encodeNum(price.toString()),
-          R6: await encodeNum(period.toString()),
-        },
-      });
+      unsignedTx = await (await tx.build()).toJSON();
     } catch (e) {
       console.error(e);
       alert(e.message);
@@ -265,7 +252,7 @@ export default function Send() {
 
   async function handleRentToken() {
     setIsGeneratingRentTx(true);
-    // connect to ergo wallet
+
     if (!tokenToRent) return;
 
     const changeAddress = await ergo.get_change_address();
@@ -274,44 +261,37 @@ export default function Send() {
 
     // generate unsigned transaction
     try {
-      unsignedTx = await sendFunds({
-        funds: {
-          ERG: parseInt(tokenToRent.additionalRegisters.R5.renderedValue),
-          tokens: [],
-        },
-        toAddress: Address.fromErgoTree(tokenToRent.additionalRegisters.R4.renderedValue).address,
-        additionalRegisters: {},
+      const INPUT_0 = new eUTXOBox(tokenToRent as ExplorerBox);
+      const deltaTime = INPUT_0.R6[Long].get;
+      const endOfRent = new Date().getTime() + parseInt(deltaTime);
+      const price = INPUT_0.R5[Long].get;
+
+      // as a part of proposed transaction we are "purposing" to add two more registers to the locked box.
+      const OUTPUT_0 = INPUT_0.setRegisters({
+        R7: { value: tree, type: CollByte },
+        R8: { value: endOfRent, type: Long },
       });
+
+      const tx = new Transaction([
+        [INPUT_0, OUTPUT_0],
+        {
+          funds: {
+            ERG: parseInt(price),
+            tokens: [],
+          },
+          toAddress: Address.fromErgoTree(INPUT_0.R4[CollByte].get).address,
+          changeAddress: changeAddress,
+          additionalRegisters: {},
+        },
+      ]);
+
+      unsignedTx = await (await tx.build()).toJSON();
     } catch (e) {
+      console.error(e);
       alert(e.message);
       setIsGeneratingRentTx(false);
     }
 
-    const deltaTime = tokenToRent.additionalRegisters.R6.renderedValue;
-    // on top of regular send funds tx do some enrichements.
-    // this will move to an external package.
-    //[contractToken, unspentBoxes]
-    tokenToRent.additionalRegisters.R4 = tokenToRent.additionalRegisters.R4.serializedValue;
-    tokenToRent.additionalRegisters.R5 = tokenToRent.additionalRegisters.R5.serializedValue;
-    tokenToRent.additionalRegisters.R6 = tokenToRent.additionalRegisters.R6.serializedValue;
-
-    unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs];
-    const newBox = JSON.parse(JSON.stringify(tokenToRent));
-    newBox.additionalRegisters.R7 = await encodeHex(tree);
-
-    const endOfRent = new Date().getTime() + parseInt(deltaTime);
-
-    newBox.additionalRegisters.R8 = await encodeNum(endOfRent.toString());
-    const resetBox = _.pick(newBox, [
-      'additionalRegisters',
-      'value',
-      'ergoTree',
-      'creationHeight',
-      'assets',
-    ]);
-
-    //[updatedContractBox, funds, change, fee]
-    unsignedTx.outputs = [resetBox, ...unsignedTx.outputs];
     console.log({ unsignedTx });
     setUnsignedTxJson(JSON.stringify(unsignedTx));
     setIsGeneratingRentTx(false);
@@ -320,7 +300,7 @@ export default function Send() {
 
   async function handleEditListingAsOwner() {
     setIsGeneratingRentTx(true);
-    // connect to ergo wallet
+
     if (!tokenToRent) return;
 
     const changeAddress = await ergo.get_change_address();
@@ -329,46 +309,33 @@ export default function Send() {
     const period = 1000 * 60 * 60 * 24 * rentDays;
 
     let unsignedTx;
+    const INPUT_0 = new eUTXOBox(tokenToRent as ExplorerBox);
+    const OUTPUT_0 = INPUT_0.setRegisters({
+      R5: { value: price, type: Long },
+      R6: { value: period, type: Long },
+    });
 
     // generate unsigned transaction
+    // sending 0 erg with no token helps us to generate fee box + changeBox without fee amount.
     try {
-      unsignedTx = await sendFunds({
-        funds: {
-          ERG: 0,
-          tokens: [],
+      const tx = new Transaction([
+        [INPUT_0, OUTPUT_0],
+        {
+          funds: {
+            ERG: 0,
+            tokens: [],
+          },
+          toAddress: changeAddress,
+          changeAddress: changeAddress,
+          additionalRegisters: {},
         },
-        toAddress: changeAddress,
-        additionalRegisters: {},
-      });
+      ]);
+
+      unsignedTx = await (await tx.build()).toJSON();
     } catch (e) {
       alert(e.message);
       setIsGeneratingRentTx(false);
     }
-
-    // on top of regular send funds tx do some enrichements.
-    // this will move to an external package.
-    //[contractToken, unspentBoxes]
-    tokenToRent.additionalRegisters.R4 = tokenToRent.additionalRegisters.R4.serializedValue;
-    tokenToRent.additionalRegisters.R5 = tokenToRent.additionalRegisters.R5.serializedValue;
-    tokenToRent.additionalRegisters.R6 = tokenToRent.additionalRegisters.R6.serializedValue;
-
-    unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs];
-
-    const newBox = JSON.parse(JSON.stringify(tokenToRent));
-
-    newBox.additionalRegisters.R5 = await encodeNum(price.toString());
-    newBox.additionalRegisters.R6 = await encodeNum(period.toString());
-
-    const resetBox = _.pick(newBox, [
-      'additionalRegisters',
-      'value',
-      'ergoTree',
-      'creationHeight',
-      'assets',
-    ]);
-
-    //[updatedContractBox, funds, change, fee]
-    unsignedTx.outputs = [resetBox, ...unsignedTx.outputs.filter((a) => a.value != 0)];
 
     console.log({ unsignedTx });
     setUnsignedTxJson(JSON.stringify(unsignedTx));
@@ -377,59 +344,38 @@ export default function Send() {
   }
 
   async function handleWithdrawToken() {
+    // In withdraw token we simply move NFT from SC to our wallet.
     setIsGeneratingRentTx(true);
-    // connect to ergo wallet
+
     if (!tokenToRent) return;
 
     const changeAddress = await ergo.get_change_address();
-
-    const price = rentPrice * NANO_ERG_IN_ERG;
-    const period = 1000 * 60 * 60 * 24 * rentDays;
+    const INPUT_0 = new eUTXOBox(tokenToRent as ExplorerBox);
+    const OUTPUT_0 = INPUT_0.sendTo(changeAddress);
 
     let unsignedTx;
 
     // generate unsigned transaction
+    // sending 0 erg with no token helps us to generate fee box + changeBox without fee amount.
     try {
-      unsignedTx = await sendFunds({
-        funds: {
-          ERG: 0,
-          tokens: [],
+      const tx = new Transaction([
+        [INPUT_0, OUTPUT_0],
+        {
+          funds: {
+            ERG: 0,
+            tokens: [],
+          },
+          toAddress: changeAddress,
+          changeAddress: changeAddress,
+          additionalRegisters: {},
         },
-        toAddress: changeAddress,
-        additionalRegisters: {},
-      });
+      ]);
+
+      unsignedTx = await (await tx.build()).toJSON();
     } catch (e) {
       alert(e.message);
       setIsGeneratingRentTx(false);
     }
-
-    // on top of regular send funds tx do some enrichements.
-    // this will move to an external package.
-    //[contractToken, unspentBoxes]
-    tokenToRent.additionalRegisters.R4 = tokenToRent.additionalRegisters.R4.serializedValue;
-    tokenToRent.additionalRegisters.R5 = tokenToRent.additionalRegisters.R5.serializedValue;
-    tokenToRent.additionalRegisters.R6 = tokenToRent.additionalRegisters.R6.serializedValue;
-    tokenToRent.additionalRegisters.R7 = tokenToRent.additionalRegisters.R7.serializedValue;
-    tokenToRent.additionalRegisters.R8 = tokenToRent.additionalRegisters.R8.serializedValue;
-
-    unsignedTx.inputs = [Object.assign({}, tokenToRent, { extension: {} }), ...unsignedTx.inputs];
-
-    const newBox = JSON.parse(JSON.stringify(tokenToRent));
-
-    newBox.additionalRegisters.R5 = await encodeNum(price.toString());
-    newBox.additionalRegisters.R6 = await encodeNum(period.toString());
-
-    const resetBox = _.pick(newBox, [
-      'additionalRegisters',
-      'value',
-      'ergoTree',
-      'creationHeight',
-      'assets',
-    ]);
-
-    resetBox.ergoTree = new Address(changeAddress).ergoTree;
-    //[updatedContractBox, funds, change, fee]
-    unsignedTx.outputs = [resetBox, ...unsignedTx.outputs.filter((a) => a.value != 0)];
 
     console.log({ unsignedTx });
     setUnsignedTxJson(JSON.stringify(unsignedTx));
@@ -637,33 +583,3 @@ export default function Send() {
     </div>
   );
 }
-
-enum RegisterTypes {
-  Long = 'Long',
-  'Coll[Byte]' = 'Coll[Byte]',
-  Int = 'Int',
-}
-
-
-const toR = (type: RegisterTypes, value: any) => {
-  switch(type) {
-    case RegisterTypes.Long:
-      return encodeNum(value.toString());
-    case RegisterTypes.Int:
-      return encodeNum(value.toString(), true);
-    case RegisterTypes['Coll[Byte]']:
-      const tree = new Address(value).ergoTree;
-
-      return encodeHex(tree);
-    default:
-      throw new Error('type does not exist');
-  }
-}
-
-///////////////////////////////
-//////////// API //////////////
-///////////////////////////////
-
-///////////////////////////////
-/////////// END API ///////////
-///////////////////////////////

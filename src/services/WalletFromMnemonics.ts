@@ -24,7 +24,7 @@ const {
   UnsignedInputs,
   UnsignedTransaction,
   Wallet,
-} = require('ergo-lib-wasm-nodejs');
+} = require('ergo-lib-wasm-browser');
 import request from 'superagent';
 import JSONBig from 'json-bigint';
 import { UnsignedTx } from './connector_types';

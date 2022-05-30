@@ -1,4 +1,4 @@
-var tx = {
+const tx = {
   inputs: [
     {
       boxId: 'f55cbdee3916b21e1a71f4cab7c183cda114fb968b6f5d4618ea0e5b7ba675de',
@@ -142,7 +142,7 @@ var tx = {
   fee: 1000000,
 };
 
-var script = `
+const script = `
   val isRentalPeriodSame = OUTPUTS(0).R6[Long].get == INPUTS(0).R6[Long].get
   val isAmountOk = OUTPUTS(1).value == INPUTS(0).R5[Long].get
   sigmaProp(allOf(Coll(
@@ -151,4 +151,6 @@ var script = `
   )))
 `;
 
-(await buildScriptScope(tx)).execute(script);
+// (await buildScriptScope(tx)).execute(script);
+
+export default script;

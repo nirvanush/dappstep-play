@@ -1,7 +1,7 @@
 import { Asset, Box, RegisterInput } from './Box';
 import { currentHeight, loadTokensFromWallet } from './helpers';
 import { MIN_FEE, FEE_ADDRESS } from './constants';
-import { Address } from 'ergo-lib-wasm-nodejs';
+import { Address } from 'ergo-lib-wasm-browser';
 
 type Funds = {
   ERG: number;
@@ -163,7 +163,7 @@ export default class Transaction {
     });
 
     this.inputs.push(...inputs);
-    this.outputs.push(...[fundBox, changeBox, feeBox])
+    this.outputs.push(...[fundBox, changeBox, feeBox].filter(box => box.value > 0))
     this.dataInputs = [];
     this.fee = optimalTxFee;
 

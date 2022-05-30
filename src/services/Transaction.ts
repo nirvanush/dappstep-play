@@ -2,7 +2,7 @@ import { Balance, Asset, UtxoBox, dataInputsType } from './types';
 import { currentHeight, loadTokensFromWallet, getBalance } from './helpers';
 import { MIN_FEE, FEE_ADDRESS } from './constants';
 
-const { Address } = require('ergo-lib-wasm-nodejs');
+const { Address } = require('ergo-lib-wasm-browser');
 
 export type Funds = {
   ERG: number;
