@@ -14,7 +14,7 @@ const changeAddress = '9fEei1zvMr5CLPxpagFt4fHMyVyGJWMkowd2ezNhUyNfUZjhVPE';
 let txInstance: Transaction;
 
 const script = `
-  val isDefined = OUTPUTS.size > 3
+  val isDefined = OUTPUTS.size > 2
   val isRentalPeriodSame = OUTPUTS(0).R6[Long].get == INPUTS(0).R6[Long].get
   val isAmountOk = OUTPUTS(1).value == INPUTS(0).R5[Long].get
   val txSenderAddress = OUTPUTS(OUTPUTS.size - 2).propositionBytes
