@@ -18,6 +18,33 @@ type TxConfig = {
   };
 }
 
+export type TransactionJson = {
+  inputs: {
+      additionalRegisters: any;
+      value: string;
+      extension: {};
+      creationHeight: number;
+      ergoTree: string;
+      assets: Asset[];
+      boxId?: string | undefined;
+      transactionId?: string | undefined;
+      blockId?: string | undefined;
+  }[];
+  outputs: {
+      additionalRegisters: any;
+      value: string;
+      extension: {};
+      creationHeight: number;
+      ergoTree: string;
+      assets: Asset[];
+      boxId?: string | undefined;
+      transactionId?: string | undefined;
+      blockId?: string | undefined;
+  }[];
+  fee: string;
+  dataInputs: [];
+}
+
 type InputOutput = [Box, Box];
 
 export default class Transaction {
@@ -49,7 +76,7 @@ export default class Transaction {
     return this;
   }
 
-  toJSON() {
+  toJSON(): TransactionJson {
     const tx = {
       inputs: this.inputs.map(box => box.toJSON()),
       outputs: this.outputs.map(box => box.toJSON()),

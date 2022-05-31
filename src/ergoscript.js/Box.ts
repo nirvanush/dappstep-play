@@ -105,6 +105,7 @@ export class Box {
   additionalRegisters: AdditionalRegisters;
   R4: Register; R5: Register; R6: Register; R7: Register; R8: Register; R9: Register;
   value: number;
+  propositionBytes: string;
   assets: Asset[]
 
   constructor(boxJson: ExplorerBox) {
@@ -112,6 +113,7 @@ export class Box {
     this.additionalRegisters = this.boxJson.additionalRegisters;
     this.value = this.boxJson.value;
     this.assets = this.boxJson.assets;
+    this.propositionBytes = this.boxJson.ergoTree;
 
     const reg = this.boxJson.additionalRegisters;
     this.R4 = new Register(reg['R4']);

@@ -1,7 +1,7 @@
 import { expect } from 'chai';
-import { utxos } from './jsons/utxos';
 import { SigmaType } from '../src/ergoscript.js/Box';
 import { NANO_ERG_IN_ERG } from '../src/ergoscript.js/constants';
+import { utxos } from './jsons/utxos';
 import { tokensFromWallet } from './jsons/loadTokensFromWallet.mock';
 import * as ergoTs from '@coinbarn/ergo-ts';
 import Transaction from '../src/ergoscript.js/Transaction'
@@ -24,12 +24,15 @@ describe('Transaction', () => {
           }
         }
       ]);
+
+      // mock methods with external api call
       txInstance.get_utxos = async (amount: string, tokenId: string) => new Promise((resolve) => resolve(utxos));
       txInstance.loadTokensFromWallet = async () => new Promise((resolve) => resolve(tokensFromWallet));
       txInstance.currentHeight = async () => new Promise((resolve) => resolve(760493));
 
-      const tx = await (await txInstance.build()).toJSON()
-
+      const tx = (await txInstance.build()).toJSON()      
+      const txBuilt = (await txInstance.build())
+      expect(txBuilt.outputs[0].R4['Long'].get).to.equal(4);
       expect(tx.inputs.length).to.equal(1);
       expect(tx.outputs.length).to.equal(3);
     })    

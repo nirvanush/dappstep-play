@@ -40,7 +40,7 @@ const swapArrayLocs = function (arr, index1, index2) {
 // R6 - Rent period in timestamp delta (eg: month = 1000 * 60 * 60 * 24 * 30)
 // R7 - Renter address
 // R8 - Rent end timestamp (rent started timestamp + R6)
-const baseContract = `
+export const baseContract = `
 {  
   val defined = OUTPUTS.size >= 3
 
