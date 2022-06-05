@@ -23,8 +23,7 @@ import TransactionPreviewModal from './components/TransactionPreviewModal';
 import SignerWallet from '../src/services/WalletFromMnemonics';
 import { NANO_ERG_IN_ERG } from '../src/services/constants';
 import _ from 'lodash';
-import Transaction from '../src/ergoscript.js/Transaction';
-import { Box as eUTXOBox, ExplorerBox, SigmaType } from '../src/ergoscript.js/Box';
+import Transaction, { Box as eUTXOBox, SigmaType, ExplorerBox } from 'ergoscript';
 
 const { Long, Int, CollByte } = SigmaType;
 
