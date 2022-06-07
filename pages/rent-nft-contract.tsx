@@ -43,7 +43,7 @@ export const baseContract = `
 {  
   val defined = OUTPUTS.size >= 3
 
-  val txSenderAddress = OUTPUTS(OUTPUTS.size - 2).propositionBytes
+  val txSenderAddress = INPUTS(1).propositionBytes
 
   val isAmountOk = OUTPUTS(1).value == INPUTS(0).R5[Long].get
   // now check that the locked box was modified correctly
