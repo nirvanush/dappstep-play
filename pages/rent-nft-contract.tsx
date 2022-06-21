@@ -282,7 +282,10 @@ export default function Send() {
           funds: {
             ERG: 0, // will be replaced with minimum during tx building
             tokens: [
-              { tokenId: '0b7c3cd3145209c6f455e2a0b890195eafcde934e09ca3d54d7972d1f1ce3c44', amount: 50 } // have to send ValleyDAO along with the payment
+              {
+                tokenId: '0b7c3cd3145209c6f455e2a0b890195eafcde934e09ca3d54d7972d1f1ce3c44',
+                amount: 50,
+              }, // have to send ValleyDAO along with the payment
             ],
           },
           toAddress: '9ftUoK8Sn7vWnHvZ48bRfz8oSkZraFDnwe3NmzfvMBf8qEbxavB',
@@ -332,7 +335,7 @@ export default function Send() {
           },
           toAddress: changeAddress,
           additionalRegisters: {},
-        }
+        },
       ]);
 
       unsignedTx = await (await tx.build()).toJSON();
