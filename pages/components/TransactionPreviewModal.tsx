@@ -30,9 +30,9 @@ function TransactionPreviewModal({
           <ModalHeader>Transaction overview</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
-            <div style={{ border: '1px gray solid', maxHeight: 550 }}>
+            <div style={{ border: '1px gray solid', maxHeight: 800 }}>
               {/* <Image src="/utxo-change.svg" width={1000} height={500} /> */}
-              <TxIoView width={1000} height={500} ergoTx={JSON.parse(unsignedTx) as any} />
+              <TxIoView width={1000} height={750} ergoTx={JSON.parse(unsignedTx) as any} />
             </div>
             {feedback && <div>{feedback}</div>}
             {txHash && (

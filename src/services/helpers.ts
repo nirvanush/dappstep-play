@@ -11,7 +11,7 @@ export async function p2sNode(contract: string) {
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: '{"source":"' + contract.replaceAll('\n', '\\n').replaceAll('"', '\\\\"') + '"}',
+    body: '{"source":"' + contract.replaceAll('\n', '\\n').replaceAll('"', '\\"') + '"}',
   })
     .then((res) => res.json())
     .then((res) => {

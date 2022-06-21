@@ -40,62 +40,74 @@ const swapArrayLocs = function (arr, index1, index2) {
 // R7 - Renter address
 // R8 - Rent end timestamp (rent started timestamp + R6)
 export const baseContract = `
-{  
+{
   val defined = OUTPUTS.size >= 3
 
   val txSenderAddress = INPUTS(1).propositionBytes
+  val isHasRenter = INPUTS(0).R7[Coll[Byte]].isDefined
+  val isSentByOwner = INPUTS(0).R4[Coll[Byte]].isDefined && txSenderAddress == INPUTS(0).R4[Coll[Byte]].get
 
-  val isAmountOk = OUTPUTS(1).value == INPUTS(0).R5[Long].get
-  // now check that the locked box was modified correctly
-  val isOwnerStillSame = OUTPUTS(0).R4[Coll[Byte]].get == INPUTS(0).R4[Coll[Byte]].get
-  val isAmountStillSame = OUTPUTS(0).R5[Long].get == INPUTS(0).R5[Long].get
-  val isRentalPeriodSame = OUTPUTS(0).R6[Long].get == INPUTS(0).R6[Long].get
   val gracePeriod = 3600000L
   val timestamp = CONTEXT.preHeader.timestamp
-  val leftRange =  timestamp + INPUTS(0).R6[Long].get - gracePeriod
-  val rightRange = timestamp + INPUTS(0).R6[Long].get + gracePeriod
 
-  val isRentENDHigher = OUTPUTS(0).R8[Long].isDefined && OUTPUTS(0).R8[Long].get > leftRange
-  val isRentENDLower = OUTPUTS(0).R8[Long].isDefined && OUTPUTS(0).R8[Long].get < rightRange
-  val isSettingEndTimeInAcceptableRange = isRentENDHigher && isRentENDLower
-  
-  // adding more registers to that box
-  val isSendingFundsToSeller = OUTPUTS(1).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
-  val isSettingTheRenter = OUTPUTS(0).R7[Coll[Byte]].isDefined && OUTPUTS(0).R7[Coll[Byte]].get == txSenderAddress
-  
-  // general purpose stuff
-  val isHasRenter = INPUTS(0).R7[Coll[Byte]].isDefined
-
-  val isRentingExpired = INPUTS(0).R8[Long].isDefined && INPUTS(0).R8[Long].get < CONTEXT.preHeader.timestamp
-  val isSentByOwner = txSenderAddress == INPUTS(0).R4[Coll[Byte]].get
-  val isLegitRentingTx = allOf(Coll(
-    isSendingFundsToSeller,
-    isSettingTheRenter,
-    isSettingEndTimeInAcceptableRange,
-    isAmountOk,
-    isOwnerStillSame,
-    isAmountStillSame,
-    isRentalPeriodSame,
-  ))
   if (!isHasRenter) {
     if (isSentByOwner) { // cancel listing / edit listing
       val isSettingRenter = OUTPUTS(0).R7[Coll[Byte]].isDefined
       val isSettingRentEnd = OUTPUTS(0).R8[Long].isDefined
-      sigmaProp(allOf(Coll(
-        isOwnerStillSame,
-        !isSettingRenter,
-        !isSettingRentEnd
-      )))
+      val isWithdrawing = OUTPUTS(0).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
+      sigmaProp(anyOf(
+        Coll(
+          isWithdrawing,
+          allOf(
+            Coll(
+              !isSettingRenter,
+              !isSettingRentEnd
+            )
+          )
+        )
+      ))
     } else {
+      val isAmountOk = OUTPUTS(1).value == INPUTS(0).R5[Long].get
+      val isAmountStillSame = OUTPUTS(0).R5[Long].get == INPUTS(0).R5[Long].get
+      val isRentalPeriodSame = OUTPUTS(0).R6[Long].get == INPUTS(0).R6[Long].get
+      val leftRange =  timestamp + INPUTS(0).R6[Long].get - gracePeriod
+      val rightRange = timestamp + INPUTS(0).R6[Long].get + gracePeriod
+
+      val isRentENDHigher = OUTPUTS(0).R8[Long].isDefined && OUTPUTS(0).R8[Long].get > leftRange
+      val isRentENDLower = OUTPUTS(0).R8[Long].isDefined && OUTPUTS(0).R8[Long].get < rightRange
+      val isSettingEndTimeInAcceptableRange = isRentENDHigher && isRentENDLower
+
+      // adding more registers to that box
+      val isOwnerStillSame = OUTPUTS(0).R4[Coll[Byte]].isDefined && OUTPUTS(0).R4[Coll[Byte]].get == INPUTS(0).R4[Coll[Byte]].get
+      val isSendingFundsToSeller = OUTPUTS(1).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
+      val isSettingTheRenter = OUTPUTS(0).R7[Coll[Byte]].isDefined && OUTPUTS(0).R7[Coll[Byte]].get == txSenderAddress
+      val isSendingDAO = OUTPUTS(2).tokens(0)._1 == fromBase64("C3w80xRSCcb0VeKguJAZXq/N6TTgnKPVTXly0fHOPEQ=")
+      val isSendingCorrectAmountOfDAO = OUTPUTS(2).tokens(0)._2 >= 50
+      val isSendingToRewardsBank = OUTPUTS(2).propositionBytes == fromBase64("AAjNArRUcc3BMbV01fnAhGJM9QWAd1d6ksLR4XeKcWAQcmFd")
+      val isLegitRentingTx = allOf(Coll(
+        isSendingFundsToSeller,
+        isSettingTheRenter,
+        isSettingEndTimeInAcceptableRange,
+        isAmountOk,
+        isOwnerStillSame,
+        isAmountStillSame,
+        isRentalPeriodSame,
+        isSendingCorrectAmountOfDAO,
+        isSendingDAO,
+        isSendingToRewardsBank
+      ))
       // renting tx
       sigmaProp(isLegitRentingTx)
     }
   } else {
+    val isRentingExpired = INPUTS(0).R8[Long].isDefined && INPUTS(0).R8[Long].get < CONTEXT.preHeader.timestamp
+
     if (isSentByOwner) { // rent expired, the owner can clime his token back
       sigmaProp(isRentingExpired)
     } else { // Allow renter to renew before rent over
-      val isSentBySameRenter = OUTPUTS(0).R7[Coll[Byte]].get == txSenderAddress
-      sigmaProp(isSentBySameRenter && isLegitRentingTx && !isRentingExpired)
+      // val isSentBySameRenter = OUTPUTS(0).R7[Coll[Byte]].get == txSenderAddress
+      // sigmaProp(isSentBySameRenter && isLegitRentingTx && !isRentingExpired)
+      sigmaProp(false)
     }
   }
 }
@@ -209,11 +221,10 @@ export default function Send() {
       const tx = new Transaction([
         {
           funds: {
-            ERG: minBoxValue * 2,
+            ERG: minBoxValue * 2.5,
             tokens: [{ tokenId: selectedToken.tokenId, amount: 1 }],
           },
           toAddress: resp.address, // contract address
-          changeAddress: changeAddress,
           additionalRegisters: {
             R4: { value: tree, type: CollByte }, // owner address
             R5: { value: price, type: Long },
@@ -265,7 +276,16 @@ export default function Send() {
             tokens: [],
           },
           toAddress: Address.fromErgoTree(INPUT_0.R4[CollByte].get).address,
-          changeAddress: changeAddress,
+          additionalRegisters: {},
+        },
+        {
+          funds: {
+            ERG: 0, // will be replaced with minimum during tx building
+            tokens: [
+              { tokenId: '0b7c3cd3145209c6f455e2a0b890195eafcde934e09ca3d54d7972d1f1ce3c44', amount: 50 } // have to send ValleyDAO along with the payment
+            ],
+          },
+          toAddress: '9ftUoK8Sn7vWnHvZ48bRfz8oSkZraFDnwe3NmzfvMBf8qEbxavB',
           additionalRegisters: {},
         },
       ]);
@@ -311,9 +331,8 @@ export default function Send() {
             tokens: [],
           },
           toAddress: changeAddress,
-          changeAddress: changeAddress,
           additionalRegisters: {},
-        },
+        }
       ]);
 
       unsignedTx = await (await tx.build()).toJSON();
@@ -336,7 +355,7 @@ export default function Send() {
 
     const changeAddress = await ergo.get_change_address();
     const INPUT_0 = new eUTXOBox(tokenToRent as ExplorerBox);
-    const OUTPUT_0 = INPUT_0.sendTo(changeAddress);
+    const OUTPUT_0 = INPUT_0.sendTo(changeAddress).resetRegisters();
 
     let unsignedTx;
 
@@ -351,7 +370,6 @@ export default function Send() {
             tokens: [],
           },
           toAddress: changeAddress,
-          changeAddress: changeAddress,
           additionalRegisters: {},
         },
       ]);
@@ -435,7 +453,7 @@ export default function Send() {
 
         <Flex>
           <Box w="50%">
-            <ErgoScriptEditor onChange={handleScriptChanged} height="600px" code={contract} />
+            <ErgoScriptEditor onChange={handleScriptChanged} height="1000px" code={contract} />
           </Box>
           <Box w="50%" paddingLeft={10}>
             {compileError && <div className="compile-error">{compileError}</div>}
