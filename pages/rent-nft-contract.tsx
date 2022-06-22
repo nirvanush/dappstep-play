@@ -77,6 +77,8 @@ export const baseContract = `
       val isRentENDLower = OUTPUTS(0).R8[Long].isDefined && OUTPUTS(0).R8[Long].get < rightRange
       val isSettingEndTimeInAcceptableRange = isRentENDHigher && isRentENDLower
 
+      // a simple technique to make your ergotree unique, comparing header timestamp to some random date in the past
+      val uniqueness = CONTEXT.preHeader.timestamp > 4321
       // adding more registers to that box
       val isOwnerStillSame = OUTPUTS(0).R4[Coll[Byte]].isDefined && OUTPUTS(0).R4[Coll[Byte]].get == INPUTS(0).R4[Coll[Byte]].get
       val isSendingFundsToSeller = OUTPUTS(1).propositionBytes == INPUTS(0).R4[Coll[Byte]].get
@@ -94,7 +96,8 @@ export const baseContract = `
         isRentalPeriodSame,
         isSendingCorrectAmountOfDAO,
         isSendingDAO,
-        isSendingToRewardsBank
+        isSendingToRewardsBank,
+        uniqueness
       ))
       // renting tx
       sigmaProp(isLegitRentingTx)
@@ -221,7 +224,7 @@ export default function Send() {
       const tx = new Transaction([
         {
           funds: {
-            ERG: minBoxValue * 2.5,
+            ERG: minBoxValue * 3,
             tokens: [{ tokenId: selectedToken.tokenId, amount: 1 }],
           },
           toAddress: resp.address, // contract address
