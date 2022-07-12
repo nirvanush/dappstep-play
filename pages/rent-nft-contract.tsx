@@ -369,15 +369,7 @@ export default function Send() {
     // sending 0 erg with no token helps us to generate fee box + changeBox without fee amount.
     try {
       const tx = new Transaction([
-        [INPUT_0, OUTPUT_0],
-        {
-          funds: {
-            ERG: 0,
-            tokens: [],
-          },
-          toAddress: changeAddress,
-          additionalRegisters: {},
-        },
+        [INPUT_0, OUTPUT_0]
       ]);
 
       unsignedTx = await (await tx.build()).toJSON();
