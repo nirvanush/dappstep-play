@@ -31,6 +31,10 @@ export default function Home() {
             <h2>NFT rent contract &rarr;</h2>
             <p>Simplified dApp + Contract used to rent plots on SigmaValley</p>
           </a>
+          <a href="/proxy-contract" className={styles.card}>
+            <h2>Proxy contract &rarr;</h2>
+            <p>Proxy contract for token sale with dynamic vars</p>
+          </a>
         </div>
       </main>
 

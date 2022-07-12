@@ -13,18 +13,20 @@ import {
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
-import { Address, minBoxValue } from '@coinbarn/ergo-ts';
+import { Address, minBoxValue, Serializer } from '@coinbarn/ergo-ts';
 import { blake2b256 } from '@multiformats/blake2/blake2b';
-import { Serializer } from '@coinbarn/ergo-ts/dist/serializer';
-import { sendToken, loadTokensFromWallet } from '../src/services/GenerateSendFundsTx';
-import { sendFunds } from '../src/services/Transaction';
+import { loadTokensFromWallet } from '../src/services/GenerateSendFundsTx';
 import { checkTx, p2sNode } from '../src/services/helpers';
-import { encodeHex, encodeLongTuple, encodeNum, encodeByteArray } from '../src/lib/serializer';
+import { encodeByteArray } from '../src/lib/serializer';
+
 import { get } from '../src/lib/rest';
 import styles from '../styles/Home.module.css';
 import ErgoScriptEditor from './components/ErgoScriptEditor';
 import TransactionPreviewModal from './components/TransactionPreviewModal';
-import { txById } from '../src/lib/explorer';
+
+import Transaction, { Box as eUTXOBox, SigmaType, ExplorerBox } from 'ergoscript';
+
+const CONTRACT_PATH = 'pin-lock-contract';
 
 const swapArrayLocs = function (arr, index1, index2) {
   const temp = arr[index1];
@@ -34,7 +36,7 @@ const swapArrayLocs = function (arr, index1, index2) {
 };
 
 const baseContract = `
-  sigmaProp(INPUTS(0).R4[Coll[Byte]].get == blake2b256(OUTPUTS(0).R4[Coll[Byte]].get))
+  sigmaProp(INPUTS(0).R4[Coll[Byte]].get == blake2b256(OUTPUTS(1).R4[Coll[Byte]].get))
 `;
 
 async function listTokens() {
@@ -63,6 +65,8 @@ export default function Send() {
   const [isGeneratingLockTx, setIsGeneratingLockTx] = useState(false);
   const [isGeneratingReleaseTx, setIsGeneratingReleaseTx] = useState(false);
   const [pin, setPin] = useState('1234');
+  const [isSubmittingTx, setIsSubmittingTx] = useState(false);
+  const [txHash, setTxHash] = useState('');
 
   const { isOpen, onOpen, onClose } = useDisclosure();
 
@@ -88,7 +92,7 @@ export default function Send() {
 
   async function handleScriptChanged(value) {
     setContract(value);
-    localStorage.setItem('contract', value);
+    localStorage.setItem(CONTRACT_PATH, value);
 
     let resp;
 
@@ -97,12 +101,7 @@ export default function Send() {
 
       if (resp.error) {
         const message = resp.error;
-        // const lineNum = parseInt(message.split('\n')[1].replace('line ', ''));
-        // const $numberEl = document
-        //   .querySelector('.cm-lineNumbers')
-        //   .querySelectorAll('.cm-gutterElement')[lineNum];
 
-        // $numberEl.classList.add('errorCircle');
         setCompileError(message);
         setContractAddress(null);
         return;
@@ -138,16 +137,19 @@ export default function Send() {
     const hashedPin = await encodeByteArray(await blake2b256.encode(pin));
 
     try {
-      unsignedTx = await sendFunds({
+      const tx = new Transaction([{
         funds: {
           ERG: minBoxValue,
           tokens: [{ tokenId: selectedToken.tokenId, amount: 1 }],
         },
         toAddress: resp.address,
         additionalRegisters: {
-          R4: hashedPin,
+          R4: {value: hashedPin, type: SigmaType.Raw }, // Use Raw if you don't want Transaction to encode the value and encode it manually
         },
-      });
+      }])
+
+      unsignedTx = await (await tx.build()).toJSON();
+
     } catch (e) {
       alert(e.message);
       setIsGeneratingReleaseTx(false);
@@ -170,35 +172,31 @@ export default function Send() {
     const tree = new Address(changeAddress).ergoTree;
     let unsignedTx;
 
+    const INPUT_0 = new eUTXOBox(tokenToRelease as ExplorerBox);
+    const OUTPUT_0 = INPUT_0.sendTo(changeAddress);
+
+
     // generate unsigned transaction
     try {
-      unsignedTx = await sendFunds({
-        funds: {
-          ERG: 0,
-          tokens: [],
-        },
-        toAddress: changeAddress,
-        additionalRegisters: {
-          R4: await encodeHex(Serializer.stringToHex(pin)),
-        },
-      });
+      const tx = new Transaction([
+        [INPUT_0, OUTPUT_0],
+        {
+          funds: {
+            ERG: minBoxValue,
+            tokens: [],
+          },
+          toAddress: changeAddress,
+          additionalRegisters: {
+            R4: { value: Serializer.stringToHex(pin), type: SigmaType.CollByte },
+          },
+        }
+      ])
+
+      unsignedTx = (await tx.build()).toJSON();
     } catch (e) {
       alert(e.message);
       setIsGeneratingReleaseTx(false);
     }
-
-    // on top of regular send funds tx do some enrichements.
-    // this will move to an external package.
-    unsignedTx.inputs.push(Object.assign({}, tokenToRelease, { extension: {} }));
-    unsignedTx.outputs[0] = Object.assign({}, unsignedTx.outputs[0], {
-      additionalRegisters: {
-        R4: await encodeHex(Serializer.stringToHex(pin)),
-      },
-    });
-
-    unsignedTx.outputs[1] = Object.assign({}, tokenToRelease, { ergoTree: tree });
-
-    swapArrayLocs(unsignedTx.inputs, 0, 1);
 
     console.log(unsignedTx);
     setUnsignedTxJson(JSON.stringify(unsignedTx));
@@ -207,20 +205,33 @@ export default function Send() {
   }
 
   async function signAndSubmit(unsignedTx) {
+    setIsSubmittingTx(true)
     const signedTx = await ergo.sign_tx(JSON.parse(unsignedTx));
     console.log(signedTx);
 
-    const txCheckResponse = await checkTx(signedTx);
+    const txCheckResponse = await checkTx(JSON.stringify(signedTx));
     console.log(txCheckResponse);
 
     // submit tx
-    const txHash = await ergo.submit_tx(signedTx);
+    let txHash: string;
+
+    try {
+      txHash = await ergo.submit_tx(signedTx);
+    } catch (e) {
+      console.error(e)
+      setTxHash(e.message);
+      setIsSubmittingTx(false)
+      return;
+    }
+
+    setIsSubmittingTx(false)
+    setTxHash(txHash);
 
     console.log(`https://explorer.ergoplatform.com/en/transactions/${txHash}`);
 
+    window.open(`https://explorer.ergoplatform.com/en/transactions/${txHash}`);
     return txHash;
     // window.open(`https://api.ergoplatform.com/api/v1/boxes/unspent/byAddress/${resp.address}`);
-    window.open(`https://explorer.ergoplatform.com/en/transactions/${txHash}`);
   }
 
   return (
@@ -229,6 +240,8 @@ export default function Send() {
         isOpen={isOpen}
         onClose={onClose}
         unsignedTx={unsignedTxJson}
+        txHash={txHash}
+        isSubmitting={isSubmittingTx}
         handleSubmit={() => signAndSubmit(unsignedTxJson)}
       />
 

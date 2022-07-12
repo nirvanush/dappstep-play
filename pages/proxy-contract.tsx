@@ -12,6 +12,7 @@ import {
   useDisclosure,
   Text,
   Checkbox,
+  Code
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
@@ -28,6 +29,7 @@ import _ from 'lodash';
 import Transaction, { Box as eUTXOBox, SigmaType, ExplorerBox } from 'ergoscript';
 import { updateEdge } from 'react-flow-renderer';
 
+const CONTRACT_PATH = 'proxy-contract';
 const { Long, Int, CollByte } = SigmaType;
 
 const swapArrayLocs = function (arr, index1, index2) {
@@ -99,6 +101,31 @@ function buildRenderedValue(
   return renderedValue;
 }
 
+function buildRenderedSnippet(
+  doc: { value: string; isAddress: boolean; isNumber: boolean } = {
+    value: '',
+    isAddress: false,
+    isNumber: false,
+  },
+) {
+  let snippet: string;
+  const val = doc.value;
+
+  if (doc.isNumber) {
+    snippet = `val`;
+  } else if (doc.isAddress) {
+    try {
+      snippet = `Buffer.from(new Address(val).ergoTree, 'hex').toString('base64')`;
+    } catch (e) {
+      snippet = '<not valid>';
+    }
+  } else {
+    snippet = `Buffer.from(val, 'hex').toString('base64')`;
+  }
+
+  return snippet;
+}
+
 async function listLockedListings(address: string) {
   if (!address) return [];
   return await get(`https://api.ergoplatform.com/api/v1/boxes/unspent/byAddress/${address}`)
@@ -124,6 +151,7 @@ export default function Send() {
   const [variables, setVariables] = useState([]);
   const [swapPrice, setSwapPrice] = useState(0.02);
   const [rentDays, setRentDays] = useState(1);
+  const [codeSnippet, setCodeSnippet] = useState('');
   const [variableMap, setVariableMap] = useState<any>({
     $userAddress: {
       value: '9hu1CHr4MBd7ikUjag59AZ9VHaacvTRz34u58eoLp7ZF3d1oSXk',
@@ -159,10 +187,10 @@ export default function Send() {
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   useEffect(() => {
-    parseVars(localStorage.getItem('contract') || baseContract);
+    parseVars(localStorage.getItem(CONTRACT_PATH) || baseContract);
 
     async function fetchData() {
-      setContract(localStorage.getItem('contract') || baseContract);
+      setContract(localStorage.getItem(CONTRACT_PATH) || baseContract);
 
       const resp = await p2sNode(`${baseContract}`);
       setContractAddress(resp.address);
@@ -178,7 +206,7 @@ export default function Send() {
     }
 
     fetchData();
-    handleScriptChanged(localStorage.getItem('contract') || baseContract);
+    handleScriptChanged(localStorage.getItem(CONTRACT_PATH) || baseContract);
   }, []);
 
   function handleVarChange(variable: string, value: string) {
@@ -212,10 +240,23 @@ export default function Send() {
     return uniqueMatches;
   }
 
+  function replaceSnippetString(contract: string, variableMap: any) {
+    const uniqueMatches = parseVars(contract);
+    let str = `// use in your code
+contract`;
+
+    const snippet = uniqueMatches.reduce((contractVal, variable) => {
+      str = str + `\n    .replaceAll('${variable}', ${buildRenderedSnippet(variableMap[variable])})`
+      return str;
+    }, str);
+
+    return snippet;
+  }
+
   async function handleScriptChanged(value: string) {
     const uniqueMatches = parseVars(value);
     setContract(value);
-    localStorage.setItem('contract', value);
+    localStorage.setItem(CONTRACT_PATH, value);
 
     const compiledContract = uniqueMatches.reduce((contractVal, variable) => {
       return contractVal.replaceAll(variable, buildRenderedValue(variableMap[variable]));
@@ -246,6 +287,7 @@ export default function Send() {
       }
     }, 1000);
 
+    setCodeSnippet(replaceSnippetString(value, variableMap))
     return await compile();
   }
 
@@ -281,7 +323,7 @@ export default function Send() {
     onOpen();
   }
 
-  async function handleRentToken() {
+  async function handleSendToBuyer() {
     setIsMakingSwap(true);
 
     if (!tokenToRent) return;
@@ -341,51 +383,7 @@ export default function Send() {
     onOpen();
   }
 
-  async function handleEditListingAsOwner() {
-    setIsMakingSwap(true);
-
-    if (!tokenToRent) return;
-
-    const changeAddress = await ergo.get_change_address();
-
-    const price = swapPrice * NANO_ERG_IN_ERG;
-    const period = 1000 * 60 * 60 * 24 * rentDays;
-
-    let unsignedTx;
-    const INPUT_0 = new eUTXOBox(tokenToRent as ExplorerBox);
-    const OUTPUT_0 = INPUT_0.setRegisters({
-      R5: { value: price, type: Long },
-      R6: { value: period, type: Long },
-    });
-
-    // generate unsigned transaction
-    // sending 0 erg with no token helps us to generate fee box + changeBox without fee amount.
-    try {
-      const tx = new Transaction([
-        [INPUT_0, OUTPUT_0],
-        {
-          funds: {
-            ERG: 0,
-            tokens: [],
-          },
-          toAddress: changeAddress,
-          additionalRegisters: {},
-        },
-      ]);
-
-      unsignedTx = await (await tx.build()).toJSON();
-    } catch (e) {
-      alert(e.message);
-      setIsMakingSwap(false);
-    }
-
-    console.log({ unsignedTx });
-    setUnsignedTxJson(JSON.stringify(unsignedTx));
-    setIsMakingSwap(false);
-    onOpen();
-  }
-
-  async function handleWithdrawToken() {
+  async function handleWithdrawFunds() {
     // In withdraw token we simply move NFT from SC to our wallet.
     setIsMakingSwap(true);
 
@@ -539,7 +537,7 @@ export default function Send() {
               />
 
               <Button
-                onClick={handleRentToken}
+                onClick={handleSendToBuyer}
                 width="200px"
                 colorScheme="blue"
                 isLoading={isMakingSwap}
@@ -564,7 +562,7 @@ export default function Send() {
               </Menu> */}
 
               <Button
-                onClick={handleEditListingAsOwner}
+                onClick={handleWithdrawFunds}
                 width="200px"
                 colorScheme="blue"
                 isLoading={isMakingSwap}
@@ -649,6 +647,12 @@ export default function Send() {
                   </Box>
                 );
               })}
+
+              <Code>
+                <pre>
+                {codeSnippet}
+                </pre>
+              </Code>
             </Box>
           </Box>
         </Flex>
