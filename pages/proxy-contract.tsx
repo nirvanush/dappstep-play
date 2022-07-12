@@ -37,11 +37,6 @@ const swapArrayLocs = function (arr, index1, index2) {
   arr[index2] = temp;
 };
 
-// R4 - Owner address
-// R5 - Rent price for the whole period
-// R6 - Rent period in timestamp delta (eg: month = 1000 * 60 * 60 * 24 * 30)
-// R7 - Renter address
-// R8 - Rent end timestamp (rent started timestamp + R6)
 export const baseContract = `
 {
   // dApp-specific part ensuring that user will receive what he is paying for
@@ -53,9 +48,6 @@ export const baseContract = `
       HEIGHT < $timestampL // this part is always true (timestamp is the unix-timestamp at the time of the request), it will cause compiled address to differ everytime
   }
 
-
-  
-  
   // ensuring dApp integrity is preserved - any dApp specific condition to ensure designed procedures won't be violated
   val UIFeeOk = OUTPUTS(2).propositionBytes == fromBase64("$implementor") && OUTPUTS.size == 4 // UI fee must go to UI devs not any random person who assembles the transaction
   val properBank = OUTPUTS(0).tokens(2)._1 == fromBase64("$bankNFT") // the real bank box of the sigmaUSD protocol must be used so not any random person can behave as the bank box
@@ -128,7 +120,7 @@ export default function Send() {
   const [rentDays, setRentDays] = useState(1);
   const [variableMap, setVariableMap] = useState<any>({
     '$userAddress': { value: '9hu1CHr4MBd7ikUjag59AZ9VHaacvTRz34u58eoLp7ZF3d1oSXk', isAddress: true, isNumber: false },
-    '$scTokenId': { value: '0fb7067499b8cbc8ac343d694ab817a3c750b641cf4e9aee73cceca2a7d7a770', isAddress: false, isNumber: false },
+    '$scTokenId': { value: '03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04', isAddress: false, isNumber: false },
     '$scAmountL': { value: '100000L', isAddress: false, isNumber: true },
     '$timestampL': { value: '3333333L', isAddress: false, isNumber: true },
     '$implementor': { value: '9hu1CHr4MBd7ikUjag59AZ9VHaacvTRz34u58eoLp7ZF3d1oSXk', isAddress: true, isNumber: false },
@@ -217,28 +209,18 @@ export default function Send() {
         setCompileError(null);
         const items = await listLockedListings(resp.address);
         setLockedTokens(items);
+
+        return resp.address;
       } catch (e) {}
     }, 1000);
 
-    compile();
+    return await compile();
   }
 
   async function handleSendFunds() {
     setIsSendingFunds(true);
 
-    let resp;
-
-    try {
-      resp = await p2sNode(contract);
-    } catch (e) {
-      console.log(e.error);
-      setCompileError(e.message);
-      throw e;
-    }
-
     let unsignedTx;
-    const changeAddress = await ergo.get_change_address();
-    const tree = new Address(changeAddress).ergoTree;
 
     const price = swapPrice * NANO_ERG_IN_ERG;
 
@@ -249,10 +231,8 @@ export default function Send() {
             ERG: price,
             tokens: [],
           },
-          toAddress: resp.address, // contract address
-          additionalRegisters: {
-            R4: { value: tree, type: CollByte }, // owner address
-          },
+          toAddress: contractAddress, // contract address
+          additionalRegisters: {},
         },
       ]);
 
@@ -480,7 +460,7 @@ export default function Send() {
         <Flex>
           <Box w="50%">
             <ErgoScriptEditor onChange={handleScriptChanged} height="600px" code={contract} />
-
+            <Text color={'red'}>Danger: assembler and userAddress are hard coded, make sure to adjust those values for your case before sending funds!</Text>
             <div className="step-section" data-title="1) Send Funds (0.01 ERG for 100 COMET )">
               How much ERG (erg):{` `}
               <Input
@@ -492,7 +472,7 @@ export default function Send() {
               <Button
                 onClick={handleSendFunds}
                 width="200px"
-                isLoading={isLoadingTokens || isSendingFunds}
+                isLoading={isSendingFunds}
                 isDisabled={!swapPrice}
                 colorScheme="blue"
               >
@@ -592,7 +572,8 @@ export default function Send() {
               </div>
             )}
             
-            <Box>
+            <Box mt={5}>
+              <Heading as="h3" size="md" mb={5}>Variables</Heading>
               {variables.map((item, key) => {
                 const doc = variableMap[item] || { isAddress: false, value: '', isNumber: false }
                 const val = doc ? doc.value : '';
