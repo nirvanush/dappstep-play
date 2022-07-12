@@ -11,7 +11,7 @@ import {
   Input,
   useDisclosure,
   Text,
-  Checkbox
+  Checkbox,
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
@@ -74,7 +74,13 @@ async function listTokens() {
   return await loadTokensFromWallet();
 }
 
-function buildRenderedValue(doc: {value: string, isAddress: boolean, isNumber: boolean } = { value: '', isAddress: false, isNumber: false }) {
+function buildRenderedValue(
+  doc: { value: string; isAddress: boolean; isNumber: boolean } = {
+    value: '',
+    isAddress: false,
+    isNumber: false,
+  },
+) {
   let renderedValue: string | number;
   const val = doc.value;
 
@@ -83,8 +89,8 @@ function buildRenderedValue(doc: {value: string, isAddress: boolean, isNumber: b
   } else if (doc.isAddress) {
     try {
       renderedValue = Buffer.from(new Address(val).ergoTree, 'hex').toString('base64');
-    } catch(e) {
-      renderedValue = '<not valid>'
+    } catch (e) {
+      renderedValue = '<not valid>';
     }
   } else {
     renderedValue = Buffer.from(val, 'hex').toString('base64');
@@ -119,21 +125,42 @@ export default function Send() {
   const [swapPrice, setSwapPrice] = useState(0.02);
   const [rentDays, setRentDays] = useState(1);
   const [variableMap, setVariableMap] = useState<any>({
-    '$userAddress': { value: '9hu1CHr4MBd7ikUjag59AZ9VHaacvTRz34u58eoLp7ZF3d1oSXk', isAddress: true, isNumber: false },
-    '$scTokenId': { value: '03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04', isAddress: false, isNumber: false },
-    '$scAmountL': { value: '100000L', isAddress: false, isNumber: true },
-    '$timestampL': { value: '3333333L', isAddress: false, isNumber: true },
-    '$implementor': { value: '9hu1CHr4MBd7ikUjag59AZ9VHaacvTRz34u58eoLp7ZF3d1oSXk', isAddress: true, isNumber: false },
-    '$bankNFT': { value: '0fb7067499b8cbc8ac343d694ab817a3c750b641cf4e9aee73cceca2a7d7a770', isAddress: false, isNumber: false },
-    '$returnFee': { value: 12121, isAddress: false, isNumber: true },
-    '$assemblerNodeAddr': { value: '9hu1CHr4MBd7ikUjag59AZ9VHaacvTRz34u58eoLp7ZF3d1oSXk', isAddress: false, isNumber: true },
-    '$refundHeightThreshold': { value: 12232323, isAddress: false, isNumber: true },
+    $userAddress: {
+      value: '9hu1CHr4MBd7ikUjag59AZ9VHaacvTRz34u58eoLp7ZF3d1oSXk',
+      isAddress: true,
+      isNumber: false,
+    },
+    $scTokenId: {
+      value: '03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04',
+      isAddress: false,
+      isNumber: false,
+    },
+    $scAmountL: { value: '100000L', isAddress: false, isNumber: true },
+    $timestampL: { value: '3333333L', isAddress: false, isNumber: true },
+    $implementor: {
+      value: '9hu1CHr4MBd7ikUjag59AZ9VHaacvTRz34u58eoLp7ZF3d1oSXk',
+      isAddress: true,
+      isNumber: false,
+    },
+    $bankNFT: {
+      value: '0fb7067499b8cbc8ac343d694ab817a3c750b641cf4e9aee73cceca2a7d7a770',
+      isAddress: false,
+      isNumber: false,
+    },
+    $returnFee: { value: 12121, isAddress: false, isNumber: true },
+    $assemblerNodeAddr: {
+      value: '9hu1CHr4MBd7ikUjag59AZ9VHaacvTRz34u58eoLp7ZF3d1oSXk',
+      isAddress: false,
+      isNumber: true,
+    },
+    $refundHeightThreshold: { value: 12232323, isAddress: false, isNumber: true },
   });
 
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   useEffect(() => {
     parseVars(localStorage.getItem('contract') || baseContract);
+
     async function fetchData() {
       setContract(localStorage.getItem('contract') || baseContract);
 
@@ -151,26 +178,28 @@ export default function Send() {
     }
 
     fetchData();
-    handleScriptChanged(localStorage.getItem('contract') || baseContract)
+    handleScriptChanged(localStorage.getItem('contract') || baseContract);
   }, []);
 
-  function handleVarChange(variable: string, value: string ) {
+  function handleVarChange(variable: string, value: string) {
     const doc = variableMap[variable] || { value: '', isNumber: false, isAddress: false };
 
     doc.value = value;
-    setVariableMap({ ...variableMap, [variable]: doc })
-    handleScriptChanged(contract)
+    setVariableMap({ ...variableMap, [variable]: doc });
+    handleScriptChanged(contract);
   }
 
   function handleVarChecked(variable: string, property: string, value: boolean) {
     const doc = variableMap[variable] || { value: '', isNumber: false, isAddress: false };
 
     doc[property] = value;
+
     if (property === 'isNumber' && value === true) {
       doc.isAddress = false;
     }
-    setVariableMap({ ...variableMap, [variable]: doc })
-    handleScriptChanged(contract)
+
+    setVariableMap({ ...variableMap, [variable]: doc });
+    handleScriptChanged(contract);
   }
 
   function parseVars(contract: string) {
@@ -181,16 +210,16 @@ export default function Send() {
     setVariables(uniqueMatches);
 
     return uniqueMatches;
-  } 
+  }
 
   async function handleScriptChanged(value: string) {
-    const uniqueMatches = parseVars(value)
+    const uniqueMatches = parseVars(value);
     setContract(value);
     localStorage.setItem('contract', value);
 
     const compiledContract = uniqueMatches.reduce((contractVal, variable) => {
-      return contractVal.replaceAll(variable, buildRenderedValue(variableMap[variable]))
-    }, value)
+      return contractVal.replaceAll(variable, buildRenderedValue(variableMap[variable]));
+    }, value);
 
     let resp;
     const compile = _.debounce(async () => {
@@ -207,11 +236,14 @@ export default function Send() {
 
         setContractAddress(resp.address);
         setCompileError(null);
-        const items = await listLockedListings(resp.address);
-        setLockedTokens(items);
 
+        const items = await listLockedListings(resp.address);
+
+        setLockedTokens(items);
         return resp.address;
-      } catch (e) {}
+      } catch (e) {
+        console.log(e);
+      }
     }, 1000);
 
     return await compile();
@@ -460,9 +492,11 @@ export default function Send() {
         <Flex>
           <Box w="50%">
             <ErgoScriptEditor onChange={handleScriptChanged} height="600px" code={contract} />
-            <Text color={'red'}>Danger: assembler and userAddress are hard coded,
-            make sure to adjust those values for your case before sending funds!
-            Also read the reference article below to understand it better</Text>
+            <Text color={'red'}>
+              Danger: assembler and userAddress are hard coded, make sure to adjust those values for
+              your case before sending funds! Also read the reference article below to understand it
+              better
+            </Text>
             <div className="step-section" data-title="1) Send Funds (0.01 ERG for 100 COMET )">
               How much ERG (erg):{` `}
               <Input
@@ -514,7 +548,6 @@ export default function Send() {
                 Make a Swap
               </Button>
             </div>
-
 
             <div className="step-section" data-title="3) Buyer refund">
               {/* <Menu>
@@ -573,11 +606,13 @@ export default function Send() {
                 </a>
               </div>
             )}
-            
+
             <Box mt={5}>
-              <Heading as="h3" size="md" mb={5}>Variables</Heading>
+              <Heading as="h3" size="md" mb={5}>
+                Variables
+              </Heading>
               {variables.map((item, key) => {
-                const doc = variableMap[item] || { isAddress: false, value: '', isNumber: false }
+                const doc = variableMap[item] || { isAddress: false, value: '', isNumber: false };
                 const val = doc ? doc.value : '';
 
                 const renderedValue = buildRenderedValue(doc);
@@ -585,15 +620,35 @@ export default function Send() {
                 return (
                   <Box key={`var-${key}`} pb={'5'}>
                     <Text>{item}</Text>
-                    <Input placeholder='value' width={200} mr={5} value={val} onChange={(e) => handleVarChange(item, e.target.value)}/>
-                    <Checkbox checked={doc.isAddress} pr={5} mt={2} onChange={(e) => handleVarChecked(item, 'isAddress', e.target.checked)}>isAddress</Checkbox>
-                    <Checkbox checked={doc.isNumber} defaultChecked={doc.isNumber} pr={5} mt={2} onChange={(e) => handleVarChecked(item, 'isNumber', e.target.checked)}>Don't HEX (for numbers and PK value)</Checkbox>
+                    <Input
+                      placeholder="value"
+                      width={200}
+                      mr={5}
+                      value={val}
+                      onChange={(e) => handleVarChange(item, e.target.value)}
+                    />
+                    <Checkbox
+                      checked={doc.isAddress}
+                      pr={5}
+                      mt={2}
+                      onChange={(e) => handleVarChecked(item, 'isAddress', e.target.checked)}
+                    >
+                      isAddress
+                    </Checkbox>
+                    <Checkbox
+                      checked={doc.isNumber}
+                      defaultChecked={doc.isNumber}
+                      pr={5}
+                      mt={2}
+                      onChange={(e) => handleVarChecked(item, 'isNumber', e.target.checked)}
+                    >
+                      Do not HEX (for numbers and PK value)
+                    </Checkbox>
 
                     <Text>{renderedValue}</Text>
                   </Box>
-                )
-              }
-              )}
+                );
+              })}
             </Box>
           </Box>
         </Flex>

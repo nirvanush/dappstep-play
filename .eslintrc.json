@@ -6,11 +6,9 @@
     "jest/globals": true
   },
   "extends": [
-    "plugin:prettier/recommended",
     "eslint:recommended",
     "plugin:react/recommended",
     "plugin:@typescript-eslint/recommended",
-    "prettier",
     "plugin:import/typescript",
     "plugin:import/recommended",
     "plugin:jest/recommended"
@@ -23,7 +21,7 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "plugins": ["react", "@typescript-eslint", "prettier", "react-hooks"],
+  "plugins": ["react", "@typescript-eslint", "react-hooks"],
   "rules": {
     "prefer-const": "error",
     "no-debugger": "warn",
@@ -41,7 +39,6 @@
     "import/order": "off",
     "react/prop-types": "off",
     "react/react-in-jsx-scope": "off",
-    "prettier/prettier": ["error", { "singleQuote": true, "printWidth": 100 }],
     "no-restricted-imports": [
       "error",
       {
