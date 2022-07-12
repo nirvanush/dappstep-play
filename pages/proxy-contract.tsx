@@ -460,7 +460,9 @@ export default function Send() {
         <Flex>
           <Box w="50%">
             <ErgoScriptEditor onChange={handleScriptChanged} height="600px" code={contract} />
-            <Text color={'red'}>Danger: assembler and userAddress are hard coded, make sure to adjust those values for your case before sending funds!</Text>
+            <Text color={'red'}>Danger: assembler and userAddress are hard coded,
+            make sure to adjust those values for your case before sending funds!
+            Also read the reference article below to understand it better</Text>
             <div className="step-section" data-title="1) Send Funds (0.01 ERG for 100 COMET )">
               How much ERG (erg):{` `}
               <Input
